@@ -654,6 +654,16 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    // W10.1 Mail-Diät: ausgeblendete Vorschläge („nicht mehr vorschlagen“)
+    name: "v24-diet",
+    sql: `
+      CREATE TABLE dietDismissed (
+        key TEXT PRIMARY KEY NOT NULL,
+        dismissedAt TEXT NOT NULL
+      );
+    `,
+  },
 ];
 
 /** Bringt die Datenbank auf den neuesten Stand. Jede Migration läuft in einer eigenen Transaktion. */

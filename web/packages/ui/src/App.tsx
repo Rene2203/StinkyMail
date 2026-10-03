@@ -1,4 +1,4 @@
-import type { AccountsApi, AIApi, AIStatus, AppSettingsApi, AttachmentFiles, CleanupApi, MailRepository, RulesApi, SubscriptionsApi, UserCategoriesApi, ReceiptsApi, PromisesApi, AskApi, ContactsApi, PersonalApi, AttachmentsApi, MeetingsApi } from "@stinkyma/core";
+import type { AccountsApi, AIApi, AIStatus, AppSettingsApi, AttachmentFiles, CleanupApi, MailRepository, RulesApi, SubscriptionsApi, UserCategoriesApi, ReceiptsApi, PromisesApi, AskApi, ContactsApi, PersonalApi, AttachmentsApi, MeetingsApi, StatsApi } from "@stinkyma/core";
 import { lazy, Suspense, useEffect, useMemo } from "react";
 import { MessageDetail } from "./components/MessageDetail.js";
 import { OptionsDialog } from "./components/OptionsDialog.js";
@@ -8,6 +8,7 @@ import { WebPanelDialog } from "./components/WebPanelDialog.js";
 import { SubscriptionsPanel } from "./components/SubscriptionsPanel.js";
 import { ReceiptsPanel } from "./components/ReceiptsPanel.js";
 import { PromisesPanel } from "./components/PromisesPanel.js";
+import { StatsPanel } from "./components/StatsPanel.js";
 import { AskPanel } from "./components/AskPanel.js";
 import { DigestDialog } from "./components/DigestDialog.js";
 import { composeLabels } from "./composeLabels.js";
@@ -53,6 +54,8 @@ export interface AppProps {
   attachments?: AttachmentsApi;
   /** Terminfinder */
   meetings?: MeetingsApi;
+  /** Postfach-Statistik & Mail-Diät */
+  stats?: StatsApi;
   /** Meldet Statusänderungen der KI (Download-Fortschritt usw.). */
   subscribeAIStatus?: (onStatus: (status: AIStatus) => void) => () => void;
   /** Meldet Änderungen von außen (Abgleich, Aktionen); gibt eine Abmelde-Funktion zurück. */
@@ -63,8 +66,8 @@ export interface AppProps {
 }
 
 /** Drei-Spalten-Layout: Postfächer │ Mail-Liste │ Konversation. */
-export function App({ repository, locale, accounts, files, settings, ai, rules, cleanup, webPanel, subscriptions, categories, receipts, promises, ask, contacts, personal, attachments, meetings, subscribeAIStatus, subscribeChanges, subscribeOpenMessage, subscribeOpenDigest }: AppProps) {
-  const store = useMemo(() => new BrowserStore(repository, { accounts, files, settings, ai, rules, cleanup, webPanel, subscriptions, categories, receipts, promises, ask, contacts, personal, attachments, meetings }), [repository, accounts, files, settings, ai, rules, cleanup, webPanel, subscriptions, categories, receipts, promises, ask, contacts, personal, attachments, meetings]);
+export function App({ repository, locale, accounts, files, settings, ai, rules, cleanup, webPanel, subscriptions, categories, receipts, promises, ask, contacts, personal, attachments, meetings, stats, subscribeAIStatus, subscribeChanges, subscribeOpenMessage, subscribeOpenDigest }: AppProps) {
+  const store = useMemo(() => new BrowserStore(repository, { accounts, files, settings, ai, rules, cleanup, webPanel, subscriptions, categories, receipts, promises, ask, contacts, personal, attachments, meetings, stats }), [repository, accounts, files, settings, ai, rules, cleanup, webPanel, subscriptions, categories, receipts, promises, ask, contacts, personal, attachments, meetings, stats]);
   const value = useMemo(() => ({ store, t: translator(locale), locale }), [store, locale]);
 
   useEffect(() => {
@@ -104,6 +107,8 @@ function Shell() {
         <PromisesPanel />
       ) : state.panel === "ask" ? (
         <AskPanel />
+      ) : state.panel === "stats" ? (
+        <StatsPanel />
       ) : (
         <>
           <MessageList />

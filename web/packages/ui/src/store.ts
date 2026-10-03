@@ -16,6 +16,10 @@ import {
   type PersonalApi,
   type AttachmentsApi,
   type MeetingsApi,
+  type MailboxStats,
+  type StatsApi,
+  type StatsPeriod,
+  type DietSuggestion,
   type MeetingView,
   type MeetingSlot,
   type CalendarFeed,
@@ -172,7 +176,7 @@ export interface BrowserState {
   /** Offene fremde Seite im Fenster innerhalb der App; null = zu */
   webPanel: WebPanelState | null;
   /** Was die beiden rechten Spalten zeigen: Mails oder „Abos & Verträge“ */
-  panel: "mail" | "subscriptions" | "receipts" | "promises" | "ask";
+  panel: "mail" | "subscriptions" | "receipts" | "promises" | "ask" | "stats";
   /** Verträge & Abos (W7.1) */
   subscriptions: { view: SubscriptionsView | null; selectedId: string | null; busy: boolean; error: string | null } | null;
   /** Eigene Kategorien (Seitenleiste); null = nicht verfügbar oder noch nicht geladen */
@@ -195,6 +199,8 @@ export interface BrowserState {
   ask: { question: string; sender: string | null; busy: boolean; result: AskResult | null; error: string | null; status: AskIndexStatus | null } | null;
   /** Absender-Steckbrief (W8.2) neben der Mail; null = zu */
   contact: { address: string; profile: ContactProfile | null; busy: boolean; error: string | null } | null;
+  /** Postfach-Statistik & Mail-Diät (W10.1); `note`: Rückmeldung nach einer Diät-Aktion */
+  stats: { period: StatsPeriod; data: MailboxStats | null; busy: boolean; error: string | null; note: { kind: "autoArchive"; address: string; moved: boolean } | null } | null;
   /** Transparenz-Seite (W8.3/W8.4): was gelernt wurde */
   personal: { overview: PersonalOverview | null; busy: boolean; error: string | null } | null;
   /** Feld zu einem Anhang (W9): Begründung, Entscheidung, Zusammenfassung, „Frag den Anhang“ */
@@ -342,6 +348,7 @@ export const initialState: BrowserState = {
   ask: null,
   contact: null,
   personal: null,
+  stats: null,
   insight: null,
   meeting: null,
   calendar: null,
@@ -419,10 +426,11 @@ export class BrowserStore {
   readonly #personal: PersonalApi | undefined;
   readonly #attachments: AttachmentsApi | undefined;
   readonly #meetings: MeetingsApi | undefined;
+  readonly #stats: StatsApi | undefined;
 
   constructor(
     repository: MailRepository,
-    options: { pageSize?: number; accounts?: AccountsApi; files?: AttachmentFiles; settings?: AppSettingsApi; ai?: AIApi; rules?: RulesApi; cleanup?: CleanupApi; webPanel?: WebPanelHost; subscriptions?: SubscriptionsApi; categories?: UserCategoriesApi; receipts?: ReceiptsApi; promises?: PromisesApi; ask?: AskApi; contacts?: ContactsApi; personal?: PersonalApi; attachments?: AttachmentsApi; meetings?: MeetingsApi } = {},
+    options: { pageSize?: number; accounts?: AccountsApi; files?: AttachmentFiles; settings?: AppSettingsApi; ai?: AIApi; rules?: RulesApi; cleanup?: CleanupApi; webPanel?: WebPanelHost; subscriptions?: SubscriptionsApi; categories?: UserCategoriesApi; receipts?: ReceiptsApi; promises?: PromisesApi; ask?: AskApi; contacts?: ContactsApi; personal?: PersonalApi; attachments?: AttachmentsApi; meetings?: MeetingsApi; stats?: StatsApi } = {},
   ) {
     this.#repository = repository;
     this.pageSize = options.pageSize ?? 500;
@@ -442,6 +450,95 @@ export class BrowserStore {
     this.#personal = options.personal;
     this.#attachments = options.attachments;
     this.#meetings = options.meetings;
+    this.#stats = options.stats;
+  }
+
+  // --- Postfach-Statistik & Mail-Diät (W10.1) ---
+
+  get canStats(): boolean {
+    return Boolean(this.#stats);
+  }
+
+  #patchStats(patch: Partial<NonNullable<BrowserState["stats"]>>): void {
+    const current = this.#state.stats ?? { period: 30 as StatsPeriod, data: null, busy: false, error: null, note: null };
+    this.#set({ stats: { ...current, ...patch } });
+  }
+
+  async openStats(): Promise<void> {
+    if (!this.#stats) return;
+    this.#set({ panel: "stats" });
+    this.#patchStats({ busy: true, error: null, note: null });
+    await this.#loadStats();
+  }
+
+  closeStats(): void {
+    this.#set({ panel: "mail" });
+  }
+
+  async setStatsPeriod(period: StatsPeriod): Promise<void> {
+    this.#patchStats({ period, busy: true });
+    await this.#loadStats();
+  }
+
+  async #loadStats(): Promise<void> {
+    const api = this.#stats;
+    if (!api) return;
+    const period = this.#state.stats?.period ?? 30;
+    try {
+      const data = await api.overview(period);
+      // Zeitraum inzwischen gewechselt? Dann gehört das Ergebnis nicht mehr hierher
+      if ((this.#state.stats?.period ?? 30) !== period) return;
+      this.#patchStats({ data, busy: false, error: null });
+      // Abmelde-Angaben für die Vorschläge vorladen (für den Knopf „Abbestellen“)
+      for (const s of data.suggestions) if (s.kind === "unsubscribe") void this.loadUnsubscribe(s.messageId);
+    } catch (e) {
+      this.#patchStats({ busy: false, error: messageOf(e) });
+    }
+  }
+
+  /** „Nicht mehr vorschlagen“ */
+  async dismissDiet(key: string): Promise<void> {
+    const api = this.#stats;
+    if (!api) return;
+    try {
+      await api.dismiss(key);
+    } catch (e) {
+      this.#patchStats({ error: messageOf(e) });
+    }
+    await this.#loadStats();
+  }
+
+  async resetDiet(): Promise<void> {
+    const api = this.#stats;
+    if (!api) return;
+    await api.resetDismissed().catch((e: unknown) => this.#patchStats({ error: messageOf(e) }));
+    await this.#loadStats();
+  }
+
+  /** Künftige (und auf Wunsch vorhandene) Mails des Absenders automatisch gelesen archivieren – als normale Regel, jederzeit änderbar. */
+  async dietAutoArchive(suggestion: DietSuggestion, applyToExisting: boolean): Promise<void> {
+    const api = this.#rules;
+    if (!api) return;
+    try {
+      await api.save(
+        {
+          text: `Mails von ${suggestion.address} ins Archiv`,
+          accountId: null,
+          definition: { from: [suggestion.address], subject: [], category: null, hasAttachment: false, move: "archive", folder: null, markRead: true, flag: false },
+        },
+        applyToExisting,
+      );
+      this.#patchStats({ note: { kind: "autoArchive", address: suggestion.address, moved: applyToExisting } });
+      await Promise.all([this.#loadStats(), this.loadRules(), applyToExisting ? this.loadSidebar() : Promise.resolve(), applyToExisting ? this.loadMessages() : Promise.resolve()]);
+    } catch (e) {
+      this.#patchStats({ error: messageOf(e) });
+    }
+  }
+
+  /** Aufräumen für einen Absender öffnen (zurück zur Mail-Ansicht) */
+  async statsCleanup(address: string): Promise<void> {
+    this.#set({ panel: "mail" });
+    await this.openCleanupFor(address);
   }
 
   // --- Terminfinder (W9.4) ---
@@ -1881,6 +1978,7 @@ export class BrowserStore {
       this.#state.panel === "receipts" ? this.#loadReceipts() : Promise.resolve(),
       this.#state.panel === "promises" ? this.#loadPromises() : Promise.resolve(),
       this.#state.panel === "ask" ? this.#loadAskStatus() : Promise.resolve(),
+      this.#state.panel === "stats" ? this.#loadStats() : Promise.resolve(),
       this.loadUserCategories(),
     ]);
     const selected = this.#state.selectedMessageId;

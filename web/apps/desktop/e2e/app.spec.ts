@@ -477,6 +477,24 @@ test("Transparenz-Seite: gelerntes Verhalten sehen, Absender „immer wichtig“
   await page.getByTestId("sidebar-unifiedInbox").click();
 });
 
+test("Statistik & Mail-Diät: Zahlen ohne KI, Wochen-Diagramm, Zeitraum wechseln, keine Vorschläge bei gelesener Post", async () => {
+  await page.getByTestId("sidebar-stats").click();
+  const panel = page.getByTestId("stats");
+  await expect(panel).toBeVisible();
+  await expect(panel.getByTestId("stats-received")).toContainText(/[1-9]/);
+  await expect(panel.getByTestId("stats-chart").locator(".stats-bar").first()).toBeVisible();
+  await expect(panel.getByTestId("stats-senders").locator("tbody tr").first()).toBeVisible();
+  // Beispieldaten: höchstens zwei Mails je Absender – zu wenig für einen Diät-Vorschlag
+  await expect(panel.getByTestId("stats-diet-empty")).toBeVisible();
+  await shot("39-Statistik");
+  await panel.getByTestId("stats-period-365").click();
+  await expect(panel.getByTestId("stats-period-365")).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => panel.getByTestId("stats-chart").locator(".stats-bar").count()).toBeGreaterThan(40);
+  await panel.getByRole("button", { name: "Zurück zu den Mails" }).click();
+  await expect(panel).toHaveCount(0);
+  await page.getByTestId("sidebar-unifiedInbox").click();
+});
+
 test("Änderungen bleiben nach Neustart erhalten (SQLite-Datei)", async () => {
   await page.getByRole("searchbox").fill("");
   await page.getByTestId("sidebar-unifiedInbox").click();

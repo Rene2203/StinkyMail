@@ -4191,3 +4191,259 @@ dialog.webpanel::backdrop {
 .error-text {
   color: var(--danger);
 }
+
+/* Postfach-Statistik & Mail-Diät (W10.1) */
+
+.subs-header > .stats-period {
+  flex-direction: row;
+}
+
+.stats-period button + button:not(:last-child) {
+  border-left: 0;
+  border-radius: 0;
+}
+
+.stats-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+}
+
+.stats-heading {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+
+.stats-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.stats-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+}
+
+.stats-tile strong {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.stats-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 140px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.stats-bar {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.stats-bar-pair {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+}
+
+.stats-bar-pair span {
+  width: 40%;
+  max-width: 14px;
+  border-radius: 3px 3px 0 0;
+  min-height: 1px;
+}
+
+.stats-bar-received,
+.stats-dot.received {
+  background: var(--accent);
+}
+
+.stats-bar-sent,
+.stats-dot.sent {
+  background: var(--orange);
+}
+
+.stats-bar-label {
+  font-size: 10px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.stats-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.stats-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.stats-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.stats-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--fg-muted);
+  font-size: 12px;
+  padding: 2px 6px 4px 0;
+}
+
+.stats-table td {
+  padding: 3px 6px 3px 0;
+  border-top: 1px solid var(--border);
+}
+
+.stats-table td:not(:first-child),
+.stats-table th:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.stats-sender {
+  display: inline-block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.stats-categories {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.stats-categories li {
+  display: grid;
+  grid-template-columns: 130px 1fr 40px;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats-meter {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.stats-meter span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.stats-diet ul {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stats-diet-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.stats-diet-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.stats-diet-head > svg {
+  color: var(--accent);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.stats-diet-head > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.stats-diet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats-diet-actions > button:not(.link-button) {
+  font: inherit;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+.stats-diet-actions label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stats-note {
+  margin: 0 0 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg-card);
+}

@@ -662,3 +662,23 @@ App Intents, großes RAM-Limit für lokale Modelle), lassen sich derzeit nicht a
   GGUF-Metadaten kann (Kopfgröße durch 32 teilbar: Testmodell nein, Gemma 4 E2B und Qwen 3.5 2B ja – geprüft), und ein
   Fehlschlag wird je Modell gemerkt. Damit fällt der fehlschlagende Weg weg. Windows-CI Lauf #123 danach **grün**
   (Unit-Tests, E2E, Installer). Ein einzelner grüner Lauf beweist nicht, dass das Hängen nie wieder auftritt – weiter beobachten.
+
+### 03.10.2026 – W10.1: Postfach-Statistik & Mail-Diät (Wunsch des Nutzers)
+- **Gebaut, lokal geprüft:** neue Ansicht „Statistik & Mail-Diät“ in der Seitenleiste. Zahlen (erhalten, gesendet,
+  ungelesen, pro Woche, häufigste Absender, Einordnung, eigene Antwortzeit, stärkster Wochentag/Stunde) werden per
+  Code aus der lokalen Datenbank gezählt – keine KI. Spam, Papierkorb, Entwürfe und doppelte Archiv-Kopien zählen nicht.
+- **Mail-Diät:** „Abbestellen“ (mit der vorhandenen Abmelde-Leiste) oder „automatisch archivieren“ (legt eine normale
+  Regel an, auf Wunsch auch für vorhandene Mails); „nicht mehr vorschlagen“ (Migration v24). Schwellen: Abbestellen ab
+  3 Mails und ≤ 10 % gelesen, Archivieren ab 5 Mails und ≤ 20 % gelesen. Ausgenommen: „immer wichtig“, angeschriebene
+  oder beantwortete Absender, persönliche Mails, schon abbestellt, schon per Regel erfasst. Die Schwellen sind gesetzt,
+  **nicht an echten Postfächern geprüft** – ob sie zu viel oder zu wenig vorschlagen, zeigt erst der Test des Nutzers.
+- „Gelesen“ heißt hier: Gelesen-Markierung (auch von anderen Geräten); Mails, die nur in der Vorschau überflogen wurden,
+  zählen nicht. Ältere Mails ohne gelesene Abmelde-Angabe: Newsletter gelten als abbestellbar – findet die Leiste beim
+  Laden keinen Abmelde-Weg, bietet die Karte stattdessen „automatisch archivieren“ an.
+- Tests: Unit (Zählung, Wochen, Antwortzeit, alle Ausschlüsse der Diät, Ausblenden), Oberflächen-Store, IPC-Liste,
+  E2E (Ansicht, Diagramm, Zeitraumwechsel, leere Diät – die Beispieldaten haben höchstens 2 Mails je Absender, daher
+  zeigt das E2E keine Diät-Karte; die Karten sind nur über Unit-Tests abgedeckt). E2E auch mit 1024×768 grün,
+  Laufzeit-Tests mit Testmodell grün. Stand: 455 Unit-Tests grün (ohne GreenMail), E2E 22 grün.
+- **Ungeprüft:** echtes Postfach mit vielen tausend Mails (Geschwindigkeit der Abfrage; läuft in einem Durchgang),
+  Darstellung unter Windows.
+

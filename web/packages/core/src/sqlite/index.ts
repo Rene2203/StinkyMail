@@ -18,3 +18,4 @@ export * from "./priorityStore.js";
 export * from "./personalStore.js";
 export * from "./attachmentStore.js";
 export * from "./meetingStore.js";
+export * from "./statsStore.js";

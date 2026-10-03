@@ -31,3 +31,4 @@ export * from "./style.js";
 export * from "./personal.js";
 export * from "./attachments.js";
 export * from "./meetings.js";
+export * from "./stats.js";

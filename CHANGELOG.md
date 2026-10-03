@@ -1,5 +1,18 @@
 # Changelog
 
+## W10.1 – Postfach-Statistik & Mail-Diät (Spezifikation 7.1)
+
+### Neu
+- **Statistik** (Seitenleiste „Statistik & Mail-Diät“, Zeitraum 30 Tage / 3 Monate / 1 Jahr): erhaltene und gesendete
+  Mails, Anteil ungelesen, Mails pro Woche als Diagramm, häufigste Absender (gelesen/beantwortet), Einordnung,
+  eigene Antwortzeit (Median, Anteil am selben Tag) und wann die meiste Post kommt. Nur Zählen auf dem Gerät, keine KI.
+- **Mail-Diät**: Vorschläge je Absender – „öffnest du nie“ (ab 3 Mails, höchstens 10 % gelesen) → **Abbestellen** mit
+  der bekannten Abmelde-Leiste; Massenmails ohne Abmelde-Link (ab 5 Mails, höchstens 20 % gelesen) → **automatisch
+  archivieren** als normale Regel (auf Wunsch auch für vorhandene Mails). Zeigt „ungelesen gelöscht“ aus dem
+  Verhaltens-Protokoll. Nie vorgeschlagen: als wichtig markierte Absender, Leute, denen du schreibst oder antwortest,
+  persönliche Mails, schon abbestellte oder per Regel erfasste Absender. „Nicht mehr vorschlagen“ merkt sich das
+  (Migration `v24-diet`). Nichts passiert ohne Klick.
+
 ## W9 – Anhänge verstehen und Terminfinder (Spezifikation Phase 7 und 8, Nachzügler)
 
 ### Neu

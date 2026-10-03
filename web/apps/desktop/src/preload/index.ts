@@ -15,6 +15,7 @@ const promisesMethods = ["list", "scan", "setStatus", "setDueDate", "remind", "c
 const contactsMethods = ["profile"];
 const personalMethods = ["overview", "setSenderPriority", "forget"];
 const attachmentsMethods = ["decide", "rules", "removeRule", "scan", "unlock"];
+const statsMethods = ["overview", "dismiss", "resetDismissed"];
 const meetingsMethods = ["feeds", "addFeed", "removeFeed", "refresh", "preferences", "setPreferences", "forMessage", "draftReply", "acceptance", "addToCalendar"];
 const askMethods = ["ask", "status", "downloadModel", "deleteModel"];
 const receiptsMethods = ["list", "scan", "addFromMail", "update", "setStatus", "addCategory", "removeCategory", "remind", "cancelReminder", "export"];
@@ -40,6 +41,7 @@ contextBridge.exposeInMainWorld("stinkyma", {
   personal: bridge("personal", personalMethods),
   attachments: bridge("attachments", attachmentsMethods),
   meetings: bridge("meetings", meetingsMethods),
+  stats: bridge("stats", statsMethods),
   /** Meldet Änderungen (neue Mails, Abgleich, Konten). Gibt eine Abmelde-Funktion zurück. */
   onMailChanged: (callback: () => void) => {
     const listener = () => callback();

@@ -19,6 +19,8 @@ import {
   personalApiMethods,
   attachmentsApiMethods,
   meetingsApiMethods,
+  statsApiMethods,
+  type StatsApi,
   oauthProviders,
   refreshTokens,
   type OAuthClient,
@@ -42,7 +44,7 @@ import {
 import { CleanupService, MailService, RuleService, extractLockedPdfText, type OAuthBroker } from "@stinkyma/core/mail";
 import { AIService, ModelStore, RuntimeStore, SubscriptionService, UserCategoryService, ReceiptService, PromiseService, AskService, LlamaEmbedder, AttachmentService, MeetingService } from "@stinkyma/core/llm";
 import { EncryptedFileSecretStore, signInWithLoopback } from "@stinkyma/core/node";
-import { ActionStore, AIResultStore, CleanupStore, DigestStore, SubscriptionStore, UserCategoryStore, ReceiptStore, PromiseStore, EmbeddingStore, ContactStore, PriorityStore, PersonalStore, AttachmentStore, MeetingStore, MailWriter, openDatabase, RuleStore, seedIfEmpty, SqliteMailRepository } from "@stinkyma/core/sqlite";
+import { ActionStore, AIResultStore, CleanupStore, DigestStore, SubscriptionStore, UserCategoryStore, ReceiptStore, PromiseStore, EmbeddingStore, ContactStore, PriorityStore, PersonalStore, AttachmentStore, MeetingStore, StatsStore, MailWriter, openDatabase, RuleStore, seedIfEmpty, SqliteMailRepository } from "@stinkyma/core/sqlite";
 import { buildMenu } from "./menu";
 import { trayIconDataUrl, trayIconUnreadDataUrl, windowIconDataUrl } from "./icons";
 import { SettingsFile } from "./settings";
@@ -80,6 +82,7 @@ let contacts: ContactStore | null = null;
 let personal: PersonalStore | null = null;
 let attachments: AttachmentService | null = null;
 let meetings: MeetingService | null = null;
+let stats: StatsApi | null = null;
 let priorityTimer: NodeJS.Timeout | null = null;
 let aiWasReady = false;
 let syncTimer: NodeJS.Timeout | null = null;
@@ -334,6 +337,14 @@ function setUpServices(): void {
     onChange: notifyRenderer,
   });
   void attachments.scan().catch(() => undefined);
+
+  // Postfach-Statistik & Mail-Diät (W10.1): nur Zählen, keine KI; Vorschläge ändern nichts von selbst
+  const statsStore = new StatsStore(db);
+  stats = {
+    overview: async (period) => statsStore.overview(period === 30 || period === 90 || period === 365 ? period : 30),
+    dismiss: async (key) => statsStore.dismiss(String(key)),
+    resetDismissed: async () => statsStore.resetDismissed(),
+  };
 
   // Terminfinder (W9.4): Kalender-Abo (ICS-Link, Adresse mit DPAPI verschlüsselt), freie Zeiten per Code; sendet nie
   meetings = new MeetingService({
@@ -626,6 +637,7 @@ function registerIpc(): void {
     ["personal", new Set<string>(personalApiMethods), () => personal],
     ["attachments", new Set<string>(attachmentsApiMethods), () => attachments],
     ["meetings", new Set<string>(meetingsApiMethods), () => meetings],
+    ["stats", new Set<string>(statsApiMethods), () => stats],
   ];
   for (const [channel, allowed, target] of channels) {
     ipcMain.handle(channel, async (event, method: unknown, args: unknown) => {
