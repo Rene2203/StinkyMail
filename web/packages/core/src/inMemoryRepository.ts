@@ -1,6 +1,7 @@
 import type { Account, Attachment, EmailAddress, Mailbox, MailboxRole, Message, MessageFlagName, MessageScope } from "./models.js";
 import { importantThreshold } from "./priority.js";
 import { isSnoozed, listTime } from "./snooze.js";
+import { awaitsReply } from "./followUp.js";
 import { MessageFlag, mailboxRoleRank } from "./models.js";
 import type { MailOverview, MailRepository, UnreadCounts } from "./repository.js";
 import type { MockDataSet } from "./mockData.js";
@@ -32,6 +33,7 @@ export class InMemoryMailRepository implements MailRepository {
   }
 
   async messages(scope: MessageScope, limit: number): Promise<Message[]> {
+    if (scope.kind === "awaitingReply") return this.#awaitingReply().slice(0, limit).map((m) => structuredClone(m));
     const now = new Date();
     return this.#inScope(scope)
       .sort((a, b) => (scope.kind === "snoozed" ? (a.snoozedUntil ?? "").localeCompare(b.snoozedUntil ?? "") : listTime(b, now).localeCompare(listTime(a, now))))
@@ -59,6 +61,7 @@ export class InMemoryMailRepository implements MailRepository {
   }
 
   async unreadCount(scope: MessageScope): Promise<number> {
+    if (scope.kind === "awaitingReply") return this.#awaitingReply().length;
     return this.#inScope(scope).filter((m) => (m.flags & MessageFlag.seen) === 0).length;
   }
 
@@ -81,6 +84,7 @@ export class InMemoryMailRepository implements MailRepository {
       }
       if (role !== "trash" && (m.flags & MessageFlag.flagged) !== 0 && !this.#isArchiveDuplicate(m)) counts.flagged += 1;
     }
+    counts.awaitingReply = this.#awaitingReply().length;
     return { accounts, mailboxesByAccount, counts, outbox: [] };
   }
 
@@ -114,6 +118,29 @@ export class InMemoryMailRepository implements MailRepository {
   #screenedOut(m: Message): boolean {
     if (this.#roleOf(m.mailboxId) !== "inbox") return false;
     return this.#senderDecisions.get(m.from.address.toLowerCase()) === "block" || this.#pending(m) || isSnoozed(m);
+  }
+
+  readonly #followUpDismissed = new Set<string>();
+
+  async dismissFollowUp(messageId: string): Promise<void> {
+    const m = this.#data.messages.find((x) => x.id === messageId);
+    if (m) this.#followUpDismissed.add(m.messageId ?? m.id);
+  }
+
+  /** Nachhak-Wächter wie in SQLite: neueste eigene Mail je Verlauf, keine spätere Antwort, Text erwartet eine */
+  #awaitingReply(): Message[] {
+    const own = this.#data.accounts.map((a) => a.email);
+    const ownSet = new Set(own.map((a) => a.toLowerCase()));
+    const sent = this.#data.messages.filter((m) => this.#roleOf(m.mailboxId) === "sent" && !this.#followUpDismissed.has(m.messageId ?? m.id));
+    return sent
+      .filter((m) => {
+        const thread = this.#data.messages.filter((x) => x.threadId === m.threadId && x.id !== m.id);
+        if (thread.some((x) => x.date > m.date && this.#roleOf(x.mailboxId) === "sent")) return false;
+        const recipients = new Set(m.to.map((r) => r.address.toLowerCase()));
+        const laterFromRecipient = this.#data.messages.some((x) => x.date > m.date && recipients.has(x.from.address.toLowerCase()) && !ownSet.has(x.from.address.toLowerCase()));
+        return awaitsReply(m, thread, own, new Date(), laterFromRecipient);
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
   }
 
   async snooze(messageIds: string[], until: string | null): Promise<void> {

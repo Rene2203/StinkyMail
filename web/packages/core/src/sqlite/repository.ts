@@ -15,6 +15,7 @@ import { MessageFlag, mailboxRoleRank } from "../models.js";
 import type { MailOverview, MailRepository, UnreadCounts } from "../repository.js";
 import { requireRemoteContentException } from "../remoteContent.js";
 import { ftsExpression, ftsFromExpression, ftsTermsExpression, isEmptySearch, parseSearchQuery } from "../search.js";
+import { awaitsReply, followUpDays, followUpMaxDays } from "../followUp.js";
 import { normalizeSignature, draftFromMessage, formatAddressList, isScheduled, localDraftMessage, localSentMessage, rankContacts, type ComposeDraft, type ContactUsage, type OutgoingMail } from "../compose.js";
 import type { OutboxItem } from "../repository.js";
 
@@ -91,6 +92,21 @@ const nowIso = `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
 export const snoozedNow = `(message.snoozedUntil IS NOT NULL AND message.snoozedUntil > ${nowIso})`;
 /** Aufgewacht, noch nicht geöffnet – steht zum Weckzeitpunkt oben */
 const woken = `(message.snoozedUntil IS NOT NULL AND message.snoozedUntil <= ${nowIso} AND message.snoozedUntil > message.date)`;
+/**
+ * Nachhak-Wächter (W11.5), Teil per SQL: eigene Mail vor 3–30 Tagen, nicht ausgeblendet, danach keine Mail eines anderen
+ * im Verlauf, keine spätere eigene im selben Verlauf und keine spätere Mail eines Empfängers überhaupt.
+ * Ob der Text eine Antwort erwartet, prüft danach der Code (`expectsReply`).
+ */
+const awaitingReplySql = `mailbox.role = 'sent'
+  AND message.date <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-${followUpDays} days')
+  AND message.date >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-${followUpMaxDays} days')
+  AND NOT EXISTS (SELECT 1 FROM followUpDismissed d WHERE d.messageKey = COALESCE(message.messageId, message.id))
+  AND NOT EXISTS (SELECT 1 FROM message later WHERE later.threadId = message.threadId AND later.date > message.date
+                  AND (lower(later.fromAddress) NOT IN (SELECT lower(email) FROM account)
+                       OR later.mailboxId IN (SELECT id FROM mailbox WHERE role = 'sent')))
+  AND NOT EXISTS (SELECT 1 FROM json_each(message."to") r JOIN message reply ON lower(reply.fromAddress) = lower(json_extract(r.value, '$.address'))
+                  WHERE reply.date > message.date)`;
+
 /** Posteingangs-Mail, die (noch) nicht im Posteingang erscheinen soll: Türsteher, blockiert oder schlummernd */
 export const screenedOut = `(mailbox.role = 'inbox' AND (${blockedSender} OR (${pendingSender}) OR ${snoozedNow}))`;
 
@@ -106,6 +122,8 @@ export function scopeCondition(scope: MessageScope): { sql: string; params: unkn
       return { sql: `message.mailboxId = ? AND NOT ${screenedOut}`, params: [scope.mailboxId] };
     case "snoozed":
       return { sql: `mailbox.role <> 'trash' AND ${snoozedNow}`, params: [] };
+    case "awaitingReply":
+      return { sql: awaitingReplySql, params: [] };
     case "screener":
       return { sql: `mailbox.role = ? AND ${pendingSender}`, params: ["inbox"] };
     case "important":
@@ -137,6 +155,7 @@ export class SqliteMailRepository implements MailRepository {
   }
 
   async messages(scope: MessageScope, limit: number): Promise<Message[]> {
+    if (scope.kind === "awaitingReply") return this.#awaitingReply().slice(0, limit);
     const { sql, params } = scopeCondition(scope);
     const from = "FROM message JOIN mailbox ON mailbox.id = message.mailboxId";
     if (scope.kind === "snoozed") {
@@ -187,7 +206,23 @@ export class SqliteMailRepository implements MailRepository {
     );
   }
 
+  /** Nachhak-Wächter: Kandidaten per SQL, dann Text-Prüfung per Code; neueste zuerst */
+  #awaitingReply(): Message[] {
+    const own = (this.db.prepare("SELECT email FROM account").all() as { email: string }[]).map((a) => a.email);
+    const rows = this.db
+      .prepare(`SELECT message.* FROM message JOIN mailbox ON mailbox.id = message.mailboxId WHERE ${awaitingReplySql} ORDER BY message.date DESC LIMIT 500`)
+      .all() as Row[];
+    return rows.map(messageFromRow).filter((m) => awaitsReply(m, [], own));
+  }
+
+  async dismissFollowUp(messageId: string): Promise<void> {
+    const row = this.db.prepare("SELECT COALESCE(messageId, id) AS k FROM message WHERE id = ?").get(messageId) as { k: string } | undefined;
+    if (!row) return;
+    this.db.prepare("INSERT INTO followUpDismissed (messageKey, dismissedAt) VALUES (?, ?) ON CONFLICT(messageKey) DO NOTHING").run(row.k, new Date().toISOString());
+  }
+
   async unreadCount(scope: MessageScope): Promise<number> {
+    if (scope.kind === "awaitingReply") return this.#awaitingReply().length;
     const { sql, params } = scopeCondition(scope);
     const row = this.db
       .prepare(`SELECT COUNT(*) AS n FROM message JOIN mailbox ON mailbox.id = message.mailboxId WHERE ${sql} AND (message.flags & ?) = 0`)
@@ -220,7 +255,7 @@ export class SqliteMailRepository implements MailRepository {
         .get(MessageFlag.seen, importantThreshold) as { n: number }
     ).n;
     const snoozed = (this.db.prepare(`SELECT COUNT(*) AS n FROM message JOIN mailbox ON mailbox.id = message.mailboxId WHERE mailbox.role <> 'trash' AND ${snoozedNow}`).get() as { n: number }).n;
-    const counts: UnreadCounts = { unifiedInbox: 0, unread: 0, flagged: 0, mailboxes: {}, screener, important, snoozed };
+    const counts: UnreadCounts = { unifiedInbox: 0, unread: 0, flagged: 0, mailboxes: {}, screener, important, snoozed, awaitingReply: this.#awaitingReply().length };
     for (const r of rows) {
       if (r.unread > 0) counts.mailboxes[r.mailboxId] = r.unread;
       if (r.role === "inbox") {

@@ -166,6 +166,8 @@ export type MessageScope =
   | { kind: "important" }
   /** Schlummernde Mails (W11.3), nächster Weckzeitpunkt zuerst */
   | { kind: "snoozed" }
+  /** Nachhak-Wächter (W11.5): eigene Mails ohne Antwort seit ein paar Tagen */
+  | { kind: "awaitingReply" }
   /** Alle Mails einer Kategorie (Posteingang, Archiv, eigene Ordner): feste Kategorie oder eigene als `u:<id>` */
   | { kind: "category"; category: string };
 

@@ -66,6 +66,8 @@ export interface MailRepository {
   decideSender(address: string, decision: "allow" | "block"): Promise<void>;
   /** Schlummern bis `until` (ISO) bzw. aufwecken (`null`). Nur lokal, der Server erfährt davon nichts. */
   snooze(messageIds: string[], until: string | null): Promise<void>;
+  /** Nachhak-Wächter: diese gesendete Mail nicht mehr vorschlagen („Antwort nicht nötig“) */
+  dismissFollowUp(messageId: string): Promise<void>;
 }
 
 /** Eine Mail im Postausgang (noch nicht gesendet). */
@@ -97,6 +99,8 @@ export interface UnreadCounts {
   important?: number;
   /** Schlummernde Mails – gelesen oder nicht (W11.3; fehlt bei älteren Quellen). */
   snoozed?: number;
+  /** Eigene Mails ohne Antwort (W11.5; fehlt bei älteren Quellen). */
+  awaitingReply?: number;
 }
 
 export interface MailOverview {
@@ -135,6 +139,7 @@ export const mailRepositoryMethods = [
   "setScreener",
   "decideSender",
   "snooze",
+  "dismissFollowUp",
 ] as const satisfies readonly (keyof MailRepository)[];
 
 export type MailRepositoryMethod = (typeof mailRepositoryMethods)[number];

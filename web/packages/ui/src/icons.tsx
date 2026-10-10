@@ -1,5 +1,6 @@
 import {
   AlarmClock,
+  Hourglass,
   Archive,
   AudioLines,
   Bell,
@@ -56,6 +57,8 @@ export function sidebarIcon(kind: SidebarItemKind): LucideIcon {
       return UserCheck;
     case "snoozed":
       return AlarmClock;
+    case "awaitingReply":
+      return Hourglass;
     case "mailbox":
       return roleIcon[kind.mailbox.role];
   }

@@ -355,6 +355,11 @@ export class MailService implements MailRepository, AccountsApi {
     this.options.onChange?.();
   }
 
+  async dismissFollowUp(messageId: string): Promise<void> {
+    await this.repository.dismissFollowUp(messageId);
+    this.options.onChange?.();
+  }
+
   /** Mails, deren Schlummerzeit zwischen `since` und `until` abgelaufen ist (für „Wieder da“-Hinweise) */
   wokenBetween(since: string, until: string): Message[] {
     return this.repository.wokenBetween(since, until);

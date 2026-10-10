@@ -17,6 +17,7 @@ import {
   type AttachmentsApi,
   type MeetingsApi,
   type MailboxStats,
+  followUpReplyText,
   isWoken,
   type LinkCheck,
   checkLink,
@@ -101,6 +102,7 @@ export type SidebarItemKind =
   | { type: "important" }
   | { type: "screener" }
   | { type: "snoozed" }
+  | { type: "awaitingReply" }
   | { type: "mailbox"; mailbox: Mailbox };
 
 export interface SidebarItem {
@@ -2255,6 +2257,8 @@ export class BrowserStore {
       // Türsteher: eigener Bereich, sobald er bei einem Konto an ist (Zähler = wartende Mails)
       if (accounts.some((a) => a.screener)) smart.push([{ type: "screener" }, { kind: "screener" }, counts.screener]);
       // Geschlummert (W11.3): nur zeigen, wenn es etwas gibt (oder der Bereich gerade offen ist); Zähler = alle schlummernden
+      // Nachhak-Wächter (W11.5): eigene Mails ohne Antwort
+      if ((counts.awaitingReply ?? 0) > 0 || this.#state.selectedScope.kind === "awaitingReply") smart.push([{ type: "awaitingReply" }, { kind: "awaitingReply" }, counts.awaitingReply ?? 0]);
       if ((counts.snoozed ?? 0) > 0 || this.#state.selectedScope.kind === "snoozed") smart.push([{ type: "snoozed" }, { kind: "snoozed" }, counts.snoozed ?? 0]);
       const sections: SidebarSection[] = [
         { id: "smart", account: null, items: smart.map(([kind, scope, unreadCount]) => ({ kind, scope, unreadCount })) },
@@ -2396,6 +2400,22 @@ export class BrowserStore {
       await this.#repository.snooze(ids, until.toISOString());
       await Promise.all([this.loadMessages(), this.loadSidebar()]);
     });
+  }
+
+  /** Nachhaken (W11.5): Antwort an die Empfänger mit vorbereitetem Text öffnen – gesendet wird nur auf Klick */
+  followUp(message: Message, labels: ComposeLabels, locale: "de" | "en"): void {
+    const to = message.to[0] ?? { name: null, address: "" };
+    this.openCompose("reply", labels, followUpReplyText(message, to, locale));
+  }
+
+  /** „Antwort nicht nötig“: nicht mehr vorschlagen */
+  async dismissFollowUp(id: string): Promise<void> {
+    const next = this.#state.selectedScope.kind === "awaitingReply" ? this.#selectionAfterRemoving([id]) : this.#state.selectedMessageId;
+    await this.#guard(async () => {
+      await this.#repository.dismissFollowUp(id);
+      await Promise.all([this.loadMessages(), this.loadSidebar()]);
+    });
+    if (this.#state.selectedScope.kind === "awaitingReply") await this.selectMessage(next);
   }
 
   /** Sofort aufwecken: zurück in den Posteingang */

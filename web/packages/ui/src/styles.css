@@ -2125,6 +2125,7 @@ button.attachment-open:hover {
 
 .screener-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   margin: 10px 0 14px;
@@ -2140,7 +2141,8 @@ button.attachment-open:hover {
 }
 
 .screener-text {
-  flex: 1;
+  flex: 1 1 220px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -2148,8 +2150,10 @@ button.attachment-open:hover {
 
 .screener-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .screener-buttons button {
@@ -4632,4 +4636,10 @@ dialog.webpanel::backdrop {
 .send-later-menu {
   top: auto;
   bottom: calc(100% + 4px);
+}
+
+/* Nachhak-Wächter (W11.5) */
+
+.follow-up-bar > svg {
+  color: var(--orange);
 }

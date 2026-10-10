@@ -130,6 +130,9 @@ function MessageRow(props: {
   const ownCategory = message.userCategory ? state.userCategories?.categories.find((c) => c.id === message.userCategory) : undefined;
   const read = isRead(message);
   const flagged = isFlagged(message);
+  // „Wartet auf Antwort“: interessant ist, wem man geschrieben hat
+  const showRecipient = state.selectedScope.kind === "awaitingReply";
+  const sender = showRecipient ? t("list.toRecipient", { name: message.to.map(displayName).join(", ") }) : displayName(message.from);
 
   return (
     <li
@@ -154,7 +157,7 @@ function MessageRow(props: {
           {accountColor && (
             <span className={`account-bar color-${accountColor}`} title={t("list.account", { name: accountName ?? "" })} />
           )}
-          <span className="row-sender">{displayName(message.from)}</span>
+          <span className="row-sender">{sender}</span>
           {message.hasAttachments && <Paperclip className="muted" size={13} aria-label={t("list.hasAttachment")} />}
           {(message.priorityScore ?? 0) >= importantThreshold && <Star className="row-important" size={12} fill="currentColor" aria-label={t("list.important")} data-testid="row-important" />}
           {assessPhishing(message).level === "danger" && <ShieldAlert className="row-phishing" size={13} aria-label={t("phishing.listHint")} data-testid="row-phishing" />}

@@ -11,9 +11,22 @@
   das echte Ziel im Tooltip. Adressen in reinen Textmails sind jetzt anklickbar (gleiche Prüfung); `mailto:` öffnet den
   Editor. Der Phishing-Check kennt Doppelgänger- und getarnte Links als neue Gründe.
 - **Tracking-Parameter** (`utm_*`, `fbclid`, `gclid`, `mc_eid` …) werden beim Öffnen eines Links entfernt.
+- **Schlummern** (7.3): Knopf mit Wecker (Taste B) – „Später heute“, „Heute Abend“, „Morgen früh“, „Am Wochenende“,
+  „Nächste Woche“ oder eigener Zeitpunkt. Die Mail verschwindet aus dem Posteingang, steht unter **„Geschlummert“** und
+  kommt zum Zeitpunkt **oben mit „Wieder da“** zurück (mit Benachrichtigung). Nur lokal, der Mailserver merkt davon nichts.
+- **Später senden** (7.3): Pfeil neben „Senden“ mit denselben Zeitvorschlägen. Die Mail wartet im Postausgang
+  („Geplant Mo., 08:00: …“) und geht zum Zeitpunkt raus; „Ändern“ holt sie zurück in den Editor.
+- **Nachhak-Wächter** (7.3): Eigene Mails mit Frage oder Bitte, auf die seit 3 Tagen keine Antwort kam, stehen unter
+  **„Wartet auf Antwort“**. „Nachhaken“ öffnet eine vorbereitete, freundliche Antwort (du/Sie wie in der eigenen Mail),
+  „Antwort nicht nötig“ blendet sie aus (Migration `v26-follow-up`). Ohne KI.
 - **Tracker-Report** (7.2): An der Mail steht, welche Zählpixel blockiert wurden („Darunter 2 Zählpixel: Mailchimp,
   Google Analytics“). **Zählpixel bleiben blockiert, auch wenn man „Externe Inhalte laden“ wählt** – nur echte Bilder
   werden geladen. In „Statistik & Mail-Diät“ neu: **Wer trackt** (Absender und Dienste). Migration `v25-trackers`.
+
+### Behoben
+- Eine abgelehnte Mail aus dem Postausgang mit „Bearbeiten“ zurückholen und den Editor schließen hat sie ohne Rückfrage
+  verworfen. Zurückgeholte Mails werden jetzt sofort als Entwurf gesichert.
+- Die Leiste des Türstehers (und neu des Nachhak-Wächters) quetschte im schmalen Fenster den Text; die Knöpfe brechen jetzt um.
 
 ## W10.1 – Postfach-Statistik & Mail-Diät (Spezifikation 7.1)
 

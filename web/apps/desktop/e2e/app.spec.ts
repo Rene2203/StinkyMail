@@ -530,6 +530,31 @@ test("Schlummern: Mail verschwindet bis morgen, steht unter „Geschlummert“, 
   await expect(page.getByTestId("sidebar-snoozed")).toHaveCount(0);
 });
 
+test("Nachhak-Wächter: eigene Frage ohne Antwort, „Nachhaken“ öffnet vorbereitete Antwort, „nicht nötig“ blendet aus", async () => {
+  const item = page.getByTestId("sidebar-awaitingReply");
+  await expect(item.locator(".badge")).toHaveText("1");
+  await item.click();
+  await expect(page.getByTestId("list-title")).toHaveText("Wartet auf Antwort");
+  await rows().filter({ hasText: "Elternabend im November" }).click();
+  const bar = page.getByTestId("follow-up-bar");
+  await expect(bar).toContainText("keine Antwort von Sabine Krüger");
+  await shot("41-Nachhak-Waechter");
+  await bar.getByTestId("follow-up").click();
+  const composer = page.getByTestId("composer");
+  await expect(composer.getByTestId("compose-to")).toHaveValue(/leitung@kita-sonnenschein\.example/);
+  await expect(composer.getByTestId("compose-body")).toContainText("ich wollte kurz an meine Mail vom");
+  await composer.getByTestId("compose-discard").click();
+  const confirm = composer.getByTestId("compose-confirm-discard");
+  if (await confirm.isVisible()) await confirm.click();
+  await expect(composer).toHaveCount(0);
+  await bar.getByTestId("follow-up-dismiss").click();
+  await expect(rows().filter({ hasText: "Elternabend im November" })).toHaveCount(0);
+  await expect(item.locator(".badge")).toHaveCount(0);
+  // Der offene Bereich bleibt sichtbar, bis man woanders hingeht
+  await page.getByTestId("sidebar-unifiedInbox").click();
+  await expect(page.getByTestId("sidebar-awaitingReply")).toHaveCount(0);
+});
+
 test("Änderungen bleiben nach Neustart erhalten (SQLite-Datei)", async () => {
   await page.getByRole("searchbox").fill("");
   await page.getByTestId("sidebar-unifiedInbox").click();

@@ -671,6 +671,16 @@ export const migrations: Migration[] = [
       ALTER TABLE message ADD COLUMN trackers TEXT;
     `,
   },
+  {
+    // W11.5 Nachhak-Wächter: gesendete Mails, die nicht mehr vorgeschlagen werden (Schlüssel: Message-ID, übersteht Verschieben)
+    name: "v26-follow-up",
+    sql: `
+      CREATE TABLE followUpDismissed (
+        messageKey TEXT PRIMARY KEY NOT NULL,
+        dismissedAt TEXT NOT NULL
+      );
+    `,
+  },
 ];
 
 /** Bringt die Datenbank auf den neuesten Stand. Jede Migration läuft in einer eigenen Transaktion. */

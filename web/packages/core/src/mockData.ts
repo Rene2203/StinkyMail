@@ -174,6 +174,11 @@ export function createMockData(now: Date = new Date()): MockDataSet {
     subject: "Unterlagen für die Steuererklärung 2025", date: ago({ days: 40 }), flags: seen, category: "personal",
     body: "Liebe Frau Beispiel,\n\nbitte senden Sie uns bis Ende des Monats Ihre Belege für Arbeitsmittel und Handwerkerleistungen.\n\nFreundliche Grüße\nSteuerbüro Klar" });
 
+  // Eigene Frage ohne Antwort (Nachhak-Wächter, W11.5)
+  add({ thread: "kita", account: MockIds.iCloud, role: "sent", from: me.privat, to: [{ name: "Sabine Krüger", address: "leitung@kita-sonnenschein.example" }],
+    subject: "Elternabend im November", date: ago({ days: 5, hours: 2 }), flags: seen, category: "personal",
+    body: "Hallo Frau Krüger,\n\nkönnen Sie mir sagen, wann der Elternabend im November stattfindet?\n\nViele Grüße\nAnna Beispiel" });
+
   // --- Gmail ---
   add({ thread: "fotos", account: MockIds.gmail, role: "inbox",
     from: { name: "Mama", address: "gabi.beispiel@post.example" }, to: [me.gmail],

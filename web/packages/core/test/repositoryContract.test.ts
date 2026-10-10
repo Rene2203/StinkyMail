@@ -12,13 +12,13 @@ import { SqliteMailRepository, openDatabase, seedIfEmpty } from "../src/sqlite/i
 // Beide Implementierungen müssen sich gleich verhalten – dieselben Tests laufen gegen beide.
 const now = new Date("2026-09-29T10:00:00Z");
 
-const implementations: [string, () => MailRepository][] = [
-  ["InMemory", () => new InMemoryMailRepository(createMockData(now))],
+const implementations: [string, (at?: Date) => MailRepository][] = [
+  ["InMemory", (at = now) => new InMemoryMailRepository(createMockData(at))],
   [
     "SQLite",
-    () => {
+    (at = now) => {
       const db = openDatabase(":memory:");
-      seedIfEmpty(db, createMockData(now));
+      seedIfEmpty(db, createMockData(at));
       return new SqliteMailRepository(db);
     },
   ],
@@ -139,6 +139,18 @@ describe.each(implementations)("MailRepository (%s)", (_name, make) => {
     const dates = (await repo.messages({ kind: "unifiedInbox" }, 100)).map((m) => m.date);
     expect(dates).toEqual([...dates].sort().reverse());
     await expect(repo.snooze([target.id], "kein Datum")).rejects.toThrow();
+  });
+
+  it("Nachhak-Wächter: eigene Frage ohne Antwort erscheint, Zähler stimmt, ausblenden entfernt sie", async () => {
+    // Der Wächter rechnet mit der echten Uhr – darum Beispieldaten von heute
+    const repo = make(new Date());
+    const waiting = await repo.messages({ kind: "awaitingReply" }, 10);
+    expect(waiting.map((m) => m.subject)).toEqual(["Elternabend im November"]);
+    expect(await repo.unreadCount({ kind: "awaitingReply" })).toBe(1);
+    expect((await repo.overview()).counts.awaitingReply).toBe(1);
+    await repo.dismissFollowUp(waiting[0]!.id);
+    expect(await repo.messages({ kind: "awaitingReply" }, 10)).toEqual([]);
+    expect((await repo.overview()).counts.awaitingReply).toBe(0);
   });
 
   it("verschiebt in den Ordner des jeweiligen Kontos", async () => {

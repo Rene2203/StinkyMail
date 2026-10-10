@@ -14,6 +14,7 @@ import { composeLabels } from "../composeLabels.js";
 import { SafeHtml } from "./SafeHtml.js";
 import { LinkedText } from "./LinkedText.js";
 import { SnoozeMenu } from "./SnoozeMenu.js";
+import { FollowUpBar } from "./FollowUpBar.js";
 import { SummaryCard } from "./SummaryCard.js";
 import { ActionsCard } from "./ActionsCard.js";
 import { MeetingCard } from "./MeetingCard.js";
@@ -135,6 +136,7 @@ export function MessageDetail() {
             {store.canUserCategories && !isDraft && <UserCategoryPicker message={message} />}
           </div>
           {state.selectedScope.kind === "screener" && <ScreenerBar message={message} />}
+          {state.selectedScope.kind === "awaitingReply" && !isDraft && <FollowUpBar message={message} />}
           {!isDraft && (
             <PhishingBanner
               key={message.id}

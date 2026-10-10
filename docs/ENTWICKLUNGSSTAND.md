@@ -699,5 +699,19 @@ App Intents, großes RAM-Limit für lokale Modelle), lassen sich derzeit nicht a
   dort geladen – jetzt bewusst nicht mehr). Statistik „Wer trackt“; Migration v25, ältere Mails werden beim Öffnen der
   Statistik stückweise (1000 je Aufruf) nachgeprüft. **Ungeprüft:** Trefferquote mit echten Newslettern; große Bilder
   eines Versanddienstes gelten bewusst nicht als Pixel (kann einzelne Tracker übersehen).
-- Stand Tests: 493 Unit-Tests grün (inkl. GreenMail und Laufzeit mit Testmodell), E2E 22 grün / 2 übersprungen, auch mit 1024×768.
+- **W11.3 Schlummern – gebaut, lokal geprüft:** Zeitvorschläge per Code, Mail verschwindet aus Posteingang und Zählern,
+  Bereich „Geschlummert“, aufgewacht oben mit „Wieder da“ (bis zum Öffnen); Hauptprozess prüft alle 30 s und meldet
+  „Wieder da“. Vertragstest für beide Repositories, E2E. **Ungeprüft:** Benachrichtigung unter Windows; nur lokal – auf
+  anderen Geräten (Handy-App) bleibt die Mail im Posteingang.
+- **W11.4 Später senden – gebaut, lokal geprüft:** gegen GreenMail (bleibt bis zum Zeitpunkt liegen, vergangener Zeitpunkt
+  sendet sofort) und E2E (planen, Abruf schickt nicht vorzeitig, „Ändern“). Dabei gefunden und behoben: zurückgeholte Mails
+  gingen beim Schließen des Editors ohne Rückfrage verloren (auch beim bestehenden „Bearbeiten“ abgelehnter Mails).
+  **Ungeprüft:** das tatsächliche Senden zum Zeitpunkt in der App (läuft über denselben Weg wie sofortiges Senden, im
+  Test nur über den Dienst geprüft); ist der PC zum Zeitpunkt aus, geht die Mail beim nächsten Start raus.
+- **W11.5 Nachhak-Wächter – gebaut, lokal geprüft:** eigene Mail 3–30 Tage alt, Frage/Bitte im eigenen Text (Zitat und
+  „nur zur Info“ zählen nicht), keine spätere Mail der Gegenseite (im Verlauf oder überhaupt von den Empfängern), keine
+  spätere eigene im Verlauf, keine Systemadressen. Vorlage du/Sie per Code. Unit + Vertragstest + E2E (neue Beispiel-Mail).
+  **Ungeprüft:** wie viele Fehlalarme das mit echten gesendeten Mails gibt (Heuristik ohne KI, nicht gemessen).
+- Stand Tests: 503 Unit-Tests grün (inkl. GreenMail und Laufzeit mit Testmodell), E2E 24 grün / 2 übersprungen, auch mit 1024×768.
+- Als Nächstes laut Reihenfolge: (2) Paket-Übersicht und Reise-Zeitleiste.
 
