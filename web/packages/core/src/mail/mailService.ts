@@ -24,7 +24,7 @@ import { connectImap, describeConnectionError, loginFor, MailConnectionError, te
 import { OAuthError, oauthProviders, parseStoredOAuth, tokenNeedsRefresh, type OAuthProviderId, type OAuthTokens, type StoredOAuth } from "../oauth.js";
 import { imapFlagName } from "./flags.js";
 import type { AccountSettings, AccountsApi, AddAccountOptions, SyncStatus } from "../accounts.js";
-import type { ComposeDraft, OutgoingMail } from "../compose.js";
+import { isScheduled, type ComposeDraft, type OutgoingMail } from "../compose.js";
 import { buildMessage, sendRaw, smtpLoginFor, SmtpRejectedError, type SmtpLogin } from "./smtp.js";
 import { extractAttachment } from "./parse.js";
 import { headerValue } from "../unsubscribe.js";
@@ -162,11 +162,15 @@ export class MailService implements MailRepository, AccountsApi {
       mail = { ...mail, attachments: [...(mail.attachments ?? []), ...loaded], forwardAttachments: [] };
     }
     const now = this.#now();
+    // Später senden: Zeitpunkt muss gültig sein; liegt er nicht in der Zukunft, geht die Mail sofort
+    if (mail.sendAt && Number.isNaN(Date.parse(mail.sendAt))) throw new Error("Ungültiger Sendezeitpunkt.");
+    const scheduled = isScheduled(mail, now);
+    if (!scheduled && mail.sendAt) mail = { ...mail, sendAt: null };
     const domain = account.email.split("@")[1] ?? "stinkyma.local";
     const built = await buildMessage(mail, {
       from: { name: account.displayName, address: account.email },
       messageId: `<${randomUUID()}@${domain}>`,
-      date: now,
+      date: scheduled && mail.sendAt ? new Date(mail.sendAt) : now,
     });
     this.writer.enqueueOutgoing({
       id: randomUUID(),
@@ -178,7 +182,12 @@ export class MailService implements MailRepository, AccountsApi {
     });
     this.options.onChange?.();
     if (mail.draftId) await this.deleteDraft(mail.draftId);
-    this.#scheduleFlush(account.id);
+    if (!scheduled) this.#scheduleFlush(account.id);
+  }
+
+  /** Geplante Mails, deren Zeitpunkt da ist, jetzt losschicken (vom Hauptprozess regelmäßig aufgerufen) */
+  sendDueScheduled(): void {
+    for (const accountId of this.writer.accountsWithDueScheduled(this.#now())) this.#scheduleFlush(accountId);
   }
 
   // --- Entwürfe ---
@@ -789,7 +798,7 @@ export class MailService implements MailRepository, AccountsApi {
    * der Nutzer muss die Mail bearbeiten. Nichts wird stillschweigend verworfen.
    */
   async #flushOutbox(client: ImapFlow, accountId: string): Promise<void> {
-    const rows = this.writer.pendingOutgoing(accountId);
+    const rows = this.writer.pendingOutgoing(accountId, this.#now());
     if (rows.length === 0) return;
     const account = this.writer.account(accountId);
     if (!account) return;

@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { Account, EmailAddress, Mailbox, MessageCategory } from "../models.js";
+import { isScheduled, type OutgoingMail } from "../compose.js";
 import { trackerReport } from "../trackers.js";
 import { accountFromRow, mailboxFromRow } from "./repository.js";
 
@@ -408,10 +409,21 @@ export class MailWriter {
   }
 
   /** Was noch zu tun ist: nicht gesendete (ohne endgültig abgelehnte) und gesendete, die noch in „Gesendet“ müssen. */
-  pendingOutgoing(accountId: string): OutboxRow[] {
-    return this.db
+  pendingOutgoing(accountId: string, now: Date = new Date()): OutboxRow[] {
+    const rows = this.db
       .prepare("SELECT id, accountId, mail, raw, messageId, sentAt, attempts FROM outbox WHERE accountId = ? AND failed = 0 ORDER BY createdAt")
       .all(accountId) as OutboxRow[];
+    // Später senden: erst ab dem geplanten Zeitpunkt
+    return rows.filter((r) => r.sentAt || !isScheduled(JSON.parse(r.mail) as OutgoingMail, now));
+  }
+
+  /** Konten mit geplanten Mails, deren Zeitpunkt erreicht ist (noch kein Sendeversuch – Wiederholungen laufen über den Abruf) */
+  accountsWithDueScheduled(now: Date = new Date()): string[] {
+    const rows = this.db.prepare("SELECT accountId, mail FROM outbox WHERE sentAt IS NULL AND failed = 0 AND attempts = 0").all() as { accountId: string; mail: string }[];
+    return [...new Set(rows.filter((r) => {
+      const mail = JSON.parse(r.mail) as OutgoingMail;
+      return Boolean(mail.sendAt) && !isScheduled(mail, now);
+    }).map((r) => r.accountId))];
   }
 
   outgoingCount(accountId?: string): number {

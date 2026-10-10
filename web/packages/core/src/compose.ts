@@ -33,6 +33,13 @@ export interface OutgoingMail {
   forwardedText?: string | null;
   /** Anhänge der Originalmail, die mitgehen; der Inhalt wird erst beim Senden vom Server geholt. */
   forwardAttachments?: ForwardAttachment[];
+  /** Später senden (W11.4): frühestens zu diesem Zeitpunkt (ISO); fehlt/`null` = sofort */
+  sendAt?: string | null;
+}
+
+/** Liegt der geplante Sendezeitpunkt noch in der Zukunft? */
+export function isScheduled(mail: Pick<OutgoingMail, "sendAt">, now: Date = new Date()): boolean {
+  return Boolean(mail.sendAt && Date.parse(mail.sendAt) > now.getTime());
 }
 
 export interface ForwardAttachment {

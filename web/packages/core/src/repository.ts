@@ -80,6 +80,8 @@ export interface OutboxItem {
   status: "queued" | "failed";
   /** Letzte Fehlermeldung (z. B. offline) – auch bei „queued“ möglich. */
   error: string | null;
+  /** Später senden (W11.4): geplanter Zeitpunkt, solange er in der Zukunft liegt; sonst null */
+  sendAt: string | null;
 }
 
 export interface UnreadCounts {

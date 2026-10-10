@@ -16,6 +16,7 @@ import { useBrowserState, useUi } from "../context.js";
 import { RichTextEditor } from "./RichTextEditor.js";
 import { AddressInput } from "./AddressInput.js";
 import { SafeHtml } from "./SafeHtml.js";
+import { SendLaterMenu } from "./SendLaterMenu.js";
 import { sanitizeEmailHtml } from "../sanitize.js";
 
 const titles = { new: "compose.new", reply: "compose.reply", replyAll: "compose.replyAll", forward: "compose.forward" } as const;
@@ -146,7 +147,7 @@ export default function Composer({ draft }: { draft: ComposeDraft }) {
     store.closeCompose();
   };
 
-  const send = async (event?: FormEvent) => {
+  const send = async (event?: FormEvent, sendAt: Date | null = null) => {
     event?.preventDefault();
     if (busy) return;
     const lists = [to, cc, bcc].map(parseAddressList);
@@ -192,6 +193,7 @@ export default function Composer({ draft }: { draft: ComposeDraft }) {
         forwardedHtml: draft.forwardedHtml ? sanitizeEmailHtml(draft.forwardedHtml, { allowRemote: true }).html : null,
         forwardedText: draft.forwardedText ?? null,
         forwardAttachments,
+        sendAt: sendAt ? sendAt.toISOString() : null,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, "") : String(e));
@@ -388,6 +390,7 @@ export default function Composer({ draft }: { draft: ComposeDraft }) {
           <button type="button" className="primary" disabled={busy} data-testid="compose-send" onClick={() => void send()} title={`${t("compose.send")} (Strg+Enter)`}>
             <Send size={15} aria-hidden="true" /> {busy ? t("compose.sending") : t("compose.send")}
           </button>
+          <SendLaterMenu disabled={busy} onPick={(at) => void send(undefined, at)} />
         </footer>
       </form>
     </dialog>

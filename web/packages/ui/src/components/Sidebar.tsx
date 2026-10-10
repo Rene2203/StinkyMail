@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3, Broom, Handshake, LogIn, MessageCircleQuestion, Plus, ReceiptText, RefreshCw, Repeat, Send, Settings, Sun, X } from "lucide-react";
+import { AlertTriangle, BarChart3, Broom, Clock, Handshake, LogIn, MessageCircleQuestion, Plus, ReceiptText, RefreshCw, Repeat, Send, Settings, Sun, X } from "lucide-react";
 import { isDemoAccount, scopeKey } from "@stinkyma/core";
 import { useState } from "react";
 import { useBrowserState, useUi } from "../context.js";
@@ -196,12 +196,28 @@ export function Sidebar() {
         )}
         {state.outbox.length > 0 && (
           <div className="outbox" data-testid="outbox">
-            {state.outbox.some((o) => o.status === "queued") && (
+            {state.outbox.some((o) => o.status === "queued" && !o.sendAt) && (
               <p className="outbox-line" title={state.outbox.find((o) => o.status === "queued" && o.error)?.error ?? undefined}>
                 <Send size={14} aria-hidden="true" />
-                <span>{t("outbox.queued", { count: state.outbox.filter((o) => o.status === "queued").length })}</span>
+                <span>{t("outbox.queued", { count: state.outbox.filter((o) => o.status === "queued" && !o.sendAt).length })}</span>
               </p>
             )}
+            {state.outbox
+              .filter((o) => o.status === "queued" && o.sendAt)
+              .map((o) => (
+                <p key={o.id} className="outbox-line" data-testid="outbox-scheduled" title={o.to}>
+                  <Clock size={14} aria-hidden="true" />
+                  <span className="ellipsis">
+                    {t("outbox.scheduled", {
+                      when: new Date(o.sendAt ?? "").toLocaleString(locale === "de" ? "de-DE" : "en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
+                      subject: o.subject || "–",
+                    })}
+                  </span>
+                  <button type="button" className="link-button" onClick={() => void store.reopenOutgoing(o.id)}>
+                    {t("outbox.scheduledEdit")}
+                  </button>
+                </p>
+              ))}
             {state.outbox
               .filter((o) => o.status === "failed")
               .map((o) => (

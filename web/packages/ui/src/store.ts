@@ -2126,8 +2126,12 @@ export class BrowserStore {
   async reopenOutgoing(id: string): Promise<void> {
     await this.#guard(async () => {
       const mail = await this.#repository.reopenOutgoing(id);
+      if (!mail) return await this.loadSidebar();
+      // Sofort als Entwurf sichern – sonst wäre die Mail beim Schließen des Editors ohne Rückfrage weg
+      const draft = { ...mail, sendAt: null, mode: mail.inReplyTo ? ("reply" as const) : ("new" as const) };
+      const draftId = await this.#repository.saveDraft(null, { ...draft, draftId: null });
       await this.loadSidebar();
-      if (mail) this.#set({ compose: { ...mail, mode: mail.inReplyTo ? "reply" : "new" } });
+      this.#set({ compose: { ...draft, draftId } });
     });
   }
 

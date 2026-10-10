@@ -307,6 +307,36 @@ test("Konto einrichten, Mails abrufen, HTML sicher anzeigen", async () => {
     await expect.poll(() => serverCount("Drafts"), { timeout: 15_000 }).toBe(0);
   });
 
+  await test.step("Später senden: wartet geplant im Postausgang, „Ändern“ holt die Mail zurück in den Editor", async () => {
+    await page.getByTestId("compose-new").click();
+    const composer = page.getByTestId("composer");
+    await composer.getByTestId("compose-to").fill("planung@example.test");
+    await composer.getByTestId("compose-subject").fill("Geplante Mail");
+    await composer.getByTestId("compose-send-later").click();
+    const menu = composer.getByTestId("send-later-menu");
+    await expect(menu).toBeVisible();
+    await page.screenshot({ path: join(screenshotDir, "12b-Spaeter-senden.png") });
+    // Escape schließt nur das Menü, nicht den Editor
+    await page.keyboard.press("Escape");
+    await expect(menu).toHaveCount(0);
+    await expect(composer).toBeVisible();
+    await composer.getByTestId("compose-send-later").click();
+    await menu.getByTestId("send-later-tomorrow").click();
+    await expect(composer).toHaveCount(0);
+    const scheduled = page.getByTestId("outbox-scheduled");
+    await expect(scheduled).toContainText("Geplante Mail");
+    await page.getByTestId("sync-now").click();
+    await expect(page.getByTestId("sync-status")).not.toHaveText(/Wird abgerufen/, { timeout: 15_000 });
+    await expect(scheduled).toBeVisible(); // Abruf schickt sie nicht vorzeitig
+    await scheduled.getByRole("button", { name: "Ändern" }).click();
+    await expect(composer).toBeVisible();
+    await expect(composer.getByTestId("compose-subject")).toHaveValue("Geplante Mail");
+    await expect(page.getByTestId("outbox-scheduled")).toHaveCount(0);
+    await composer.getByTestId("compose-discard").click();
+    await composer.getByTestId("compose-confirm-discard").click();
+    await expect(composer).toHaveCount(0);
+  });
+
   await test.step("Antworten per Taste R, Senden mit Strg+Enter – kommt beim Empfänger an und liegt in „Gesendet“", async () => {
     await page.getByTestId("sidebar-unifiedInbox").click();
     await page.getByText("Grillen?").click();

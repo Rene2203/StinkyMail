@@ -445,6 +445,8 @@ function checkSnoozed(): void {
 /** Fällige Erinnerungen als Windows-Benachrichtigung; Klick öffnet die Mail. */
 function checkReminders(): void {
   void checkDigest();
+  // Später senden (W11.4): geplante Mails zum Zeitpunkt losschicken
+  service?.sendDueScheduled();
   checkSnoozed();
   const due = ai?.takeDueReminders() ?? [];
   if (due.length === 0 || !Notification.isSupported()) return;

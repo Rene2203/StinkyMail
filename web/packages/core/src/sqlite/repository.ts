@@ -15,7 +15,7 @@ import { MessageFlag, mailboxRoleRank } from "../models.js";
 import type { MailOverview, MailRepository, UnreadCounts } from "../repository.js";
 import { requireRemoteContentException } from "../remoteContent.js";
 import { ftsExpression, ftsFromExpression, ftsTermsExpression, isEmptySearch, parseSearchQuery } from "../search.js";
-import { normalizeSignature, draftFromMessage, formatAddressList, localDraftMessage, localSentMessage, rankContacts, type ComposeDraft, type ContactUsage, type OutgoingMail } from "../compose.js";
+import { normalizeSignature, draftFromMessage, formatAddressList, isScheduled, localDraftMessage, localSentMessage, rankContacts, type ComposeDraft, type ContactUsage, type OutgoingMail } from "../compose.js";
 import type { OutboxItem } from "../repository.js";
 
 type Row = Record<string, unknown>;
@@ -333,6 +333,7 @@ export class SqliteMailRepository implements MailRepository {
         createdAt: r.createdAt,
         status: r.failed ? "failed" : "queued",
         error: r.lastError,
+        sendAt: isScheduled(mail) ? (mail.sendAt ?? null) : null,
       };
     });
   }

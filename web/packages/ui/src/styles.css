@@ -4619,3 +4619,17 @@ dialog.webpanel::backdrop {
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* Später senden (W11.4) */
+
+.send-later-toggle {
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+  margin-left: -6px;
+  border-left: 1px solid color-mix(in srgb, var(--fg-on-accent) 35%, transparent) !important;
+}
+
+.send-later-menu {
+  top: auto;
+  bottom: calc(100% + 4px);
+}

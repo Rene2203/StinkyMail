@@ -312,6 +312,27 @@ describe.skipIf(!port)("IMAP-Abgleich gegen GreenMail", () => {
     expect((await service.overview()).outbox).toHaveLength(0);
   });
 
+  it("Später senden: bleibt bis zum Zeitpunkt im Postausgang, lässt sich zurückholen; vergangener Zeitpunkt sendet sofort", async () => {
+    await admin.mailboxCreate("Sent");
+    const account = await addAndSync();
+    const to = `later-${randomUUID().slice(0, 8)}@example.test`;
+    const sendAt = new Date(Date.now() + 2 * 86_400_000).toISOString();
+    const mail = { accountId: account.id, to: [{ address: to }], cc: [], bcc: [], subject: "Geplant", bodyText: "Bis Montag", sendAt };
+    await service.send(mail);
+    await service.flushNow(account.id);
+    service.sendDueScheduled();
+    const [item] = (await service.overview()).outbox;
+    expect(item).toMatchObject({ subject: "Geplant", status: "queued", sendAt, error: null });
+    expect(await receivedBy(to, "Geplant")).toBeNull();
+    expect(await service.reopenOutgoing(item!.id)).toEqual(mail);
+
+    await service.send({ ...mail, subject: "Doch sofort", sendAt: new Date(now.getTime() - 60_000).toISOString() });
+    await service.flushNow(account.id);
+    expect((await service.overview()).outbox).toEqual([]);
+    expect(await receivedBy(to, "Doch sofort")).not.toBeNull();
+    await expect(service.send({ ...mail, sendAt: "irgendwann" })).rejects.toThrow(/Sendezeitpunkt/);
+  });
+
   it("Senden ohne Empfänger wird abgelehnt", async () => {
     const account = await addAndSync();
     await expect(service.send({ accountId: account.id, to: [], cc: [], bcc: [], subject: "x", bodyText: "" })).rejects.toThrow(/Empfänger/);
