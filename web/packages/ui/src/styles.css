@@ -4447,3 +4447,79 @@ dialog.webpanel::backdrop {
   border-radius: 6px;
   background: var(--bg-card);
 }
+
+/* Link-Prüfer (W11.1) */
+
+.link-dialog-body {
+  padding: 18px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.link-dialog-body header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.link-dialog-body h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.link-dialog.caution header svg {
+  color: var(--orange);
+}
+
+.link-dialog.danger header svg {
+  color: var(--danger);
+}
+
+.link-dialog-body p {
+  margin: 0;
+}
+
+.link-host {
+  font-size: 18px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.link-url {
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-warnings {
+  margin: 6px 0 4px;
+  padding-left: 18px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dialog-footer button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-body a {
+  color: var(--accent);
+}
+
+.stats-services {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--fg-muted);
+}

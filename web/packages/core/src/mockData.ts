@@ -167,7 +167,7 @@ export function createMockData(now: Date = new Date()): MockDataSet {
   add({ thread: "phishing", account: MockIds.iCloud, role: "inbox",
     from: { name: "Sicherheitsteam", address: "service@konto-sicherung.example" }, to: [me.privat],
     subject: "Dringend: Ihr Konto wurde gesperrt", date: ago({ days: 4 }), flags: 0, category: "spam_suspect",
-    body: "Sehr geehrter Kunde,\n\nwir haben ungewöhnliche Aktivitäten festgestellt. Bestätigen Sie innerhalb von 24 Stunden Ihre Daten, sonst wird Ihr Konto endgültig gelöscht." });
+    body: "Sehr geehrter Kunde,\n\nwir haben ungewöhnliche Aktivitäten festgestellt. Bestätigen Sie innerhalb von 24 Stunden Ihre Daten, sonst wird Ihr Konto endgültig gelöscht.\n\nJetzt bestätigen: https://paypa1.example/konto" });
 
   add({ thread: "steuer", account: MockIds.iCloud, role: "archive",
     from: { name: "Steuerbüro Klar", address: "kanzlei@steuerbuero-klar.example" }, to: [me.privat],

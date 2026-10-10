@@ -664,6 +664,13 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    // W11.2 Tracker-Report: Dienste mit Zählpixel je Mail (JSON-Liste; '' = keins; NULL = noch nicht geprüft)
+    name: "v25-trackers",
+    sql: `
+      ALTER TABLE message ADD COLUMN trackers TEXT;
+    `,
+  },
 ];
 
 /** Bringt die Datenbank auf den neuesten Stand. Jede Migration läuft in einer eigenen Transaktion. */

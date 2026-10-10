@@ -12,6 +12,7 @@ import { ContactPanel } from "./ContactPanel.js";
 import { AttachmentInsight, AttachmentStatus } from "./AttachmentInsight.js";
 import { composeLabels } from "../composeLabels.js";
 import { SafeHtml } from "./SafeHtml.js";
+import { LinkedText } from "./LinkedText.js";
 import { SummaryCard } from "./SummaryCard.js";
 import { ActionsCard } from "./ActionsCard.js";
 import { MeetingCard } from "./MeetingCard.js";
@@ -193,7 +194,7 @@ function ThreadMessage({ message, attachments, initiallyExpanded }: { message: M
           {message.bodyHtml ? (
             <SafeHtml html={message.bodyHtml} sender={message.from.address} />
           ) : (
-            <div className="card-body">{message.bodyText ?? message.snippet}</div>
+            <div className="card-body"><LinkedText text={message.bodyText ?? message.snippet} /></div>
           )}
           {attachments.length > 0 && (
             <ul className="attachments" role="list">

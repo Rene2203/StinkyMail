@@ -1,7 +1,9 @@
 import { ImageDown, ShieldCheck } from "lucide-react";
 import { matchRemoteContentException, senderDomain } from "@stinkyma/core";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { composeLabels } from "../composeLabels.js";
 import { useBrowserState, useUi } from "../context.js";
+import { openExternal } from "./LinkDialog.js";
 import { emailDocument, sanitizeEmailHtml } from "../sanitize.js";
 
 /**
@@ -9,7 +11,7 @@ import { emailDocument, sanitizeEmailHtml } from "../sanitize.js";
  * allow-same-origin ohne allow-scripts ist unbedenklich und erlaubt, die Höhe des Inhalts zu messen.
  */
 export function SafeHtml({ html, sender, remoteActions = true }: { html: string; sender: string; remoteActions?: boolean }) {
-  const { store, t } = useUi();
+  const { store, t, locale } = useUi();
   const { remoteContentExceptions } = useBrowserState();
   const frame = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(120);
@@ -24,9 +26,24 @@ export function SafeHtml({ html, sender, remoteActions = true }: { html: string;
     const iframe = frame.current;
     if (!iframe) return;
     let observer: ResizeObserver | undefined;
+    // Link-Prüfer (W11.1): Klicks auf Links abfangen und erst prüfen – geöffnet wird außerhalb der App
+    const onClick = (event: MouseEvent) => {
+      const target = event.target as { closest?: (selector: string) => Element | null } | null;
+      const link = target?.closest?.("a[href]");
+      if (!link) return;
+      event.preventDefault();
+      const url = store.openLink(link.getAttribute("href") ?? "", link.textContent ?? "", composeLabels(t, locale));
+      if (url) openExternal(url);
+    };
+    let attached: Document | null = null;
     const measure = () => {
       const doc = iframe.contentDocument;
       if (!doc?.documentElement) return;
+      if (attached !== doc) {
+        doc.addEventListener("click", onClick);
+        doc.addEventListener("auxclick", onClick);
+        attached = doc;
+      }
       setHeight(Math.max(40, doc.documentElement.scrollHeight));
       if (!observer && doc.body) {
         observer = new ResizeObserver(() => setHeight(Math.max(40, doc.documentElement.scrollHeight)));
@@ -36,15 +53,18 @@ export function SafeHtml({ html, sender, remoteActions = true }: { html: string;
     iframe.addEventListener("load", measure);
     return () => {
       iframe.removeEventListener("load", measure);
+      attached?.removeEventListener("click", onClick);
+      attached?.removeEventListener("auxclick", onClick);
       observer?.disconnect();
     };
-  }, [sanitized.html]);
+  }, [sanitized.html, store, t, locale]);
 
   return (
     <div className="safe-html">
       {sanitized.blockedRemote > 0 && (
         <p className="blocked-note">
           <ShieldCheck size={14} aria-hidden="true" /> {t("html.blocked")}
+          {sanitized.trackers.length > 0 && <TrackerNote trackers={sanitized.trackers} />}
           <span className="note-actions">
             <button type="button" className="link-button" onClick={() => setLoadedByClick(true)}>
               <ImageDown size={14} aria-hidden="true" /> {t("html.loadRemote")}
@@ -55,6 +75,11 @@ export function SafeHtml({ html, sender, remoteActions = true }: { html: string;
               </button>
             )}
           </span>
+        </p>
+      )}
+      {sanitized.blockedRemote === 0 && sanitized.trackers.length > 0 && (
+        <p className="blocked-note" data-testid="trackers-kept">
+          <ShieldCheck size={14} aria-hidden="true" /> <TrackerNote trackers={sanitized.trackers} kept />
         </p>
       )}
       {exception !== null && sanitized.remoteCount > 0 && (
@@ -75,5 +100,17 @@ export function SafeHtml({ html, sender, remoteActions = true }: { html: string;
         style={{ height }}
       />
     </div>
+  );
+}
+
+/** „3 Zählpixel: Mailchimp, Google Analytics …“ */
+function TrackerNote({ trackers, kept = false }: { trackers: string[]; kept?: boolean }) {
+  const { t } = useUi();
+  const shown = trackers.slice(0, 3).join(", ");
+  const more = trackers.length > 3 ? ` ${t("html.trackersMore", { n: trackers.length - 3 })}` : "";
+  return (
+    <span className="tracker-note" data-testid="tracker-note" title={trackers.join(", ")}>
+      {kept ? "" : " "}{t(kept ? "html.trackersKept" : "html.trackers", { n: trackers.length, names: shown })}{more}
+    </span>
   );
 }

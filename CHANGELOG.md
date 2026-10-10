@@ -1,5 +1,20 @@
 # Changelog
 
+## W11 – Komfort & Sicherheit (Block 1)
+
+### Neu
+- **Link-Prüfer** (Spezifikation 7.6): Jeder Klick auf einen Link in einer Mail wird vorher geprüft. Unauffällige Links
+  öffnen sofort im Browser; sonst zeigt eine Rückfrage, wohin der Link **wirklich** führt, und warum er auffällt:
+  Linktext zeigt eine andere Adresse (bei Banken/Shops als Betrug gewertet, bei Newslettern oft nur ein Klickzähler),
+  **Doppelgänger** bekannter Marken („paypa1“, „arnazon“, kyrillisches „а“), gemischte Schriften, Punycode,
+  `echte-seite.de@betrug.example`, IP-Adressen, Kurzlinks (werden nicht aufgelöst), unverschlüsselt. Beim Überfahren steht
+  das echte Ziel im Tooltip. Adressen in reinen Textmails sind jetzt anklickbar (gleiche Prüfung); `mailto:` öffnet den
+  Editor. Der Phishing-Check kennt Doppelgänger- und getarnte Links als neue Gründe.
+- **Tracking-Parameter** (`utm_*`, `fbclid`, `gclid`, `mc_eid` …) werden beim Öffnen eines Links entfernt.
+- **Tracker-Report** (7.2): An der Mail steht, welche Zählpixel blockiert wurden („Darunter 2 Zählpixel: Mailchimp,
+  Google Analytics“). **Zählpixel bleiben blockiert, auch wenn man „Externe Inhalte laden“ wählt** – nur echte Bilder
+  werden geladen. In „Statistik & Mail-Diät“ neu: **Wer trackt** (Absender und Dienste). Migration `v25-trackers`.
+
 ## W10.1 – Postfach-Statistik & Mail-Diät (Spezifikation 7.1)
 
 ### Neu

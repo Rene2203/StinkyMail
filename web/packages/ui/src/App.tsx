@@ -9,6 +9,7 @@ import { SubscriptionsPanel } from "./components/SubscriptionsPanel.js";
 import { ReceiptsPanel } from "./components/ReceiptsPanel.js";
 import { PromisesPanel } from "./components/PromisesPanel.js";
 import { StatsPanel } from "./components/StatsPanel.js";
+import { LinkDialog } from "./components/LinkDialog.js";
 import { AskPanel } from "./components/AskPanel.js";
 import { DigestDialog } from "./components/DigestDialog.js";
 import { composeLabels } from "./composeLabels.js";
@@ -126,6 +127,7 @@ function Shell() {
         </Suspense>
       )}
       {state.digest && <DigestDialog />}
+      {state.linkCheck && <LinkDialog key={state.linkCheck.check.url} />}
       {state.cleanup && <CleanupDialog />}
       {state.categoryDialog && <CategoryDialog />}
       {state.webPanel && <WebPanelDialog />}

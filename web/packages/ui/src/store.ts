@@ -17,6 +17,9 @@ import {
   type AttachmentsApi,
   type MeetingsApi,
   type MailboxStats,
+  type LinkCheck,
+  checkLink,
+  parseMailto,
   type StatsApi,
   type StatsPeriod,
   type DietSuggestion,
@@ -199,6 +202,8 @@ export interface BrowserState {
   ask: { question: string; sender: string | null; busy: boolean; result: AskResult | null; error: string | null; status: AskIndexStatus | null } | null;
   /** Absender-Steckbrief (W8.2) neben der Mail; null = zu */
   contact: { address: string; profile: ContactProfile | null; busy: boolean; error: string | null } | null;
+  /** Link-Prüfer (W11.1): Rückfrage vor dem Öffnen eines auffälligen Links; null = keine */
+  linkCheck: { check: LinkCheck; text: string } | null;
   /** Postfach-Statistik & Mail-Diät (W10.1); `note`: Rückmeldung nach einer Diät-Aktion */
   stats: { period: StatsPeriod; data: MailboxStats | null; busy: boolean; error: string | null; note: { kind: "autoArchive"; address: string; moved: boolean } | null } | null;
   /** Transparenz-Seite (W8.3/W8.4): was gelernt wurde */
@@ -349,6 +354,7 @@ export const initialState: BrowserState = {
   contact: null,
   personal: null,
   stats: null,
+  linkCheck: null,
   insight: null,
   meeting: null,
   calendar: null,
@@ -451,6 +457,31 @@ export class BrowserStore {
     this.#attachments = options.attachments;
     this.#meetings = options.meetings;
     this.#stats = options.stats;
+  }
+
+  // --- Link-Prüfer (W11.1) ---
+
+  /**
+   * Klick auf einen Link in einer Mail. Gibt die Adresse zurück, die sofort geöffnet werden darf (unauffällig,
+   * Tracking-Parameter entfernt); bei Auffälligem null und Rückfrage über `linkCheck`. mailto öffnet den Editor.
+   */
+  openLink(href: string, text: string, labels: ComposeLabels): string | null {
+    const mailto = parseMailto(href);
+    if (mailto) {
+      this.openCompose("new", labels);
+      const compose = this.#state.compose;
+      if (compose && mailto.to.length) this.#set({ compose: { ...compose, to: mailto.to.map((address) => ({ name: null, address })), subject: mailto.subject } });
+      return null;
+    }
+    const check = checkLink(href, text);
+    if (!check) return null;
+    if (check.level === "ok") return check.url;
+    this.#set({ linkCheck: { check, text } });
+    return null;
+  }
+
+  closeLinkCheck(): void {
+    this.#set({ linkCheck: null });
   }
 
   // --- Postfach-Statistik & Mail-Diät (W10.1) ---

@@ -1,4 +1,5 @@
 import DOMPurify from "dompurify";
+import { trackingImage } from "@stinkyma/core";
 
 export interface SanitizedHtml {
   html: string;
@@ -6,6 +7,8 @@ export interface SanitizedHtml {
   remoteCount: number;
   /** Davon blockiert: alle, solange der Nutzer sie nicht ausdrücklich lädt. */
   blockedRemote: number;
+  /** Erkannte Zählpixel (Dienst bzw. Host) – bleiben auch nach „Externe Inhalte laden“ blockiert (W11.2) */
+  trackers: string[];
 }
 
 export interface SanitizeOptions {
@@ -30,6 +33,7 @@ export function sanitizeEmailHtml(
   const purify = DOMPurify(window);
   const allowRemote = options.allowRemote ?? false;
   let remoteCount = 0;
+  const trackers = new Set<string>();
 
   /** Entfernt externe Adressen aus CSS (Stil-Attribut oder <style>-Block) und zählt sie. */
   const stripCss = (css: string): string => {
@@ -45,6 +49,15 @@ export function sanitizeEmailHtml(
 
   purify.addHook("afterSanitizeAttributes", (node) => {
     const element = node as Element;
+    if (element.tagName === "IMG") {
+      const pixel = trackingImage(element.outerHTML);
+      if (pixel) {
+        trackers.add(pixel.service);
+        remoteCount += 1;
+        element.removeAttribute("src");
+        element.removeAttribute("srcset");
+      }
+    }
     for (const attribute of ["src", "srcset", "background", "poster"]) {
       const value = element.getAttribute?.(attribute);
       if (value && remote.test(value)) {
@@ -62,6 +75,8 @@ export function sanitizeEmailHtml(
       if (/^(https?:|mailto:)/i.test(href)) {
         element.setAttribute("target", "_blank");
         element.setAttribute("rel", "noopener noreferrer");
+        // Beim Überfahren das echte Ziel zeigen (Link-Prüfer, W11.1)
+        element.setAttribute("title", href.length > 160 ? `${href.slice(0, 157)}…` : href);
       } else {
         element.removeAttribute("href");
       }
@@ -76,7 +91,7 @@ export function sanitizeEmailHtml(
   }) as unknown as string;
 
   purify.removeAllHooks();
-  return { html: clean, remoteCount, blockedRemote: allowRemote ? 0 : remoteCount };
+  return { html: clean, remoteCount, blockedRemote: allowRemote ? 0 : remoteCount, trackers: [...trackers] };
 }
 
 /** Vollständiges Dokument für den Sandbox-Frame. Mails erwarten meist hellen Hintergrund – daher immer hell. */

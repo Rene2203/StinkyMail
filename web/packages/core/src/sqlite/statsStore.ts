@@ -3,6 +3,7 @@ import { MessageFlag } from "../models.js";
 import type { RuleDefinition } from "../rules.js";
 import { dietThresholds, medianOf, weekStart, type DietSuggestion, type MailboxStats, type SenderStat, type StatsPeriod } from "../stats.js";
 import { archiveDuplicate } from "./repository.js";
+import { trackersColumn } from "./writer.js";
 
 type Row = Record<string, unknown>;
 
@@ -23,6 +24,7 @@ export class StatsStore {
   constructor(private readonly db: Database.Database) {}
 
   overview(period: StatsPeriod, now: Date = new Date()): MailboxStats {
+    this.#backfillTrackers();
     const since = new Date(now.getTime() - period * 86_400_000).toISOString();
 
     // Wochen vorbelegen, damit leere Wochen als 0 erscheinen
@@ -40,11 +42,14 @@ export class StatsStore {
     const hours = new Array<number>(24).fill(0);
     let received = 0;
     let unread = 0;
+    const trackingSenders = new Map<string, { address: string; name: string | null; mails: number; services: Set<string> }>();
+    const trackingServices = new Map<string, number>();
+    let trackedMails = 0;
 
     const rows = this.db
       .prepare(
         `SELECT message.id, message.fromName, message.fromAddress, message.date, message.flags, message.category,
-                message.listUnsubscribe
+                message.listUnsubscribe, message.trackers
          FROM message JOIN mailbox ON mailbox.id = message.mailboxId
          WHERE ${receivedWhere} AND message.date >= ?`,
       )
@@ -64,6 +69,20 @@ export class StatsStore {
       categories.set(category, (categories.get(category) ?? 0) + 1);
 
       const address = String(r.fromAddress).toLowerCase();
+      const services = parseTrackers(r.trackers);
+      if (services.length) {
+        trackedMails += 1;
+        let t = trackingSenders.get(address);
+        if (!t) {
+          t = { address, name: r.fromName ? String(r.fromName).trim() || null : null, mails: 0, services: new Set() };
+          trackingSenders.set(address, t);
+        }
+        t.mails += 1;
+        for (const service of services) {
+          t.services.add(service);
+          trackingServices.set(service, (trackingServices.get(service) ?? 0) + 1);
+        }
+      }
       if (!address) continue;
       let s = senders.get(address);
       if (!s) {
@@ -114,6 +133,14 @@ export class StatsStore {
       busiestWeekday: maxIndex(weekdays, 1),
       busiestHour: maxIndex(hours, 0),
       suggestions: this.#suggestions(senders, since),
+      tracking: {
+        mails: trackedMails,
+        senders: [...trackingSenders.values()]
+          .sort((a, b) => b.mails - a.mails || a.address.localeCompare(b.address))
+          .slice(0, 10)
+          .map((t) => ({ address: t.address, name: t.name, mails: t.mails, services: [...t.services].sort() })),
+        services: [...trackingServices.entries()].map(([service, mails]) => ({ service, mails })).sort((a, b) => b.mails - a.mails || a.service.localeCompare(b.service)),
+      },
     };
   }
 
@@ -198,6 +225,16 @@ export class StatsStore {
     return result.sort((a, b) => b.received - a.received || a.address.localeCompare(b.address));
   }
 
+  /** Ältere Mails (vor v25) nachträglich auf Zählpixel prüfen – je Aufruf ein Stück, damit nichts hängt */
+  #backfillTrackers(limit = 1000): void {
+    const rows = this.db.prepare("SELECT id, bodyHTML FROM message WHERE trackers IS NULL LIMIT ?").all(limit) as Row[];
+    if (!rows.length) return;
+    const update = this.db.prepare("UPDATE message SET trackers = ? WHERE id = ?");
+    this.db.transaction(() => {
+      for (const r of rows) update.run(trackersColumn(r.bodyHTML ? String(r.bodyHTML) : null), String(r.id));
+    })();
+  }
+
   dismiss(key: string, at: string = new Date().toISOString()): void {
     this.db.prepare("INSERT INTO dietDismissed (key, dismissedAt) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET dismissedAt = excluded.dismissedAt").run(key, at);
   }
@@ -224,4 +261,14 @@ function maxIndex(values: number[], offset: number): number | null {
     }
   });
   return best >= 0 ? best : null;
+}
+
+function parseTrackers(raw: unknown): string[] {
+  if (!raw) return [];
+  try {
+    const list = JSON.parse(String(raw)) as unknown;
+    return Array.isArray(list) ? list.map(String) : [];
+  } catch {
+    return [];
+  }
 }

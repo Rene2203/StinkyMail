@@ -701,7 +701,8 @@ function createWindow(): void {
 
   // Keine fremden Seiten im App-Fenster: Links öffnen im Standardbrowser, Navigation wird blockiert.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("https://")) void shell.openExternal(url);
+    // Links aus Mails prüft die Oberfläche vorher (Link-Prüfer); unverschlüsselte nur nach Rückfrage
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
     return { action: "deny" };
   });
   mainWindow.webContents.on("will-navigate", (event, url) => {

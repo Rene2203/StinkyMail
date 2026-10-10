@@ -11,7 +11,7 @@ function fakeStats() {
     overview: async (period): Promise<MailboxStats> => {
       periods.push(period);
       return {
-        period, since: "2026-09-03T00:00:00Z", received: 10, sent: 2, unreadShare: 0.5, weeks: [], topSenders: [], categories: [], myReply: null, busiestWeekday: 1, busiestHour: 9,
+        period, since: "2026-09-03T00:00:00Z", received: 10, sent: 2, unreadShare: 0.5, weeks: [], topSenders: [], categories: [], myReply: null, busiestWeekday: 1, busiestHour: 9, tracking: { mails: 0, senders: [], services: [] },
         suggestions: dismissed.has(suggestion.key) ? [] : [suggestion],
       };
     },

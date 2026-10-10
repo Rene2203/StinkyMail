@@ -99,6 +99,13 @@ test("Phishing-Warnung mit Gründen; Kennzeichen in der Liste", async () => {
   await expect(banner).toContainText("Betrugsmail");
   await expect(banner).toContainText("innerhalb von 24 Stunden");
   await shot("22-Phishing-Warnung");
+  // Link-Prüfer: Doppelgänger-Adresse im Text – erst Rückfrage, dann nicht öffnen
+  await page.getByRole("link", { name: "https://paypa1.example/konto" }).click();
+  const linkDialog = page.getByTestId("link-dialog");
+  await expect(linkDialog).toBeVisible();
+  await expect(linkDialog).toContainText("sieht nur aus wie PayPal");
+  await linkDialog.getByTestId("link-cancel").click();
+  await expect(linkDialog).toHaveCount(0);
   // Harmlose Mail: keine Warnung
   await rows().filter({ hasText: "Ihre Abschlagsrechnung Oktober" }).click();
   await expect(page.getByTestId("phishing-banner")).toHaveCount(0);

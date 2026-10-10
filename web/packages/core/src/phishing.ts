@@ -1,5 +1,6 @@
 import { AttachmentRisk } from "./attachments.js";
 import { isRiskyAttachment } from "./files.js";
+import { checkLink } from "./links.js";
 import type { Message } from "./models.js";
 
 // Phishing-Check (Spezifikation Phase 7): nachvollziehbare Warnzeichen statt Bauchgefühl. Plattformneutral, ohne KI –
@@ -10,6 +11,8 @@ export type PhishingReason =
   | { code: "freemailOfficial"; name: string; domain: string }
   | { code: "linkMismatch"; shown: string; target: string }
   | { code: "ipLink"; target: string }
+  | { code: "lookalikeLink"; brand: string; target: string }
+  | { code: "disguisedLink"; target: string }
   | { code: "shortLink"; target: string }
   | { code: "pressure"; phrase: string }
   | { code: "credentials"; phrase: string }
@@ -133,7 +136,17 @@ export function assessPhishing(
     const target = hostOf(link.href);
     if (!target) continue;
     const shown = shownHost(link.text);
-    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(target)) {
+    const check = checkLink(link.href, link.text);
+    const lookalike = check?.warnings.find((w) => w.code === "lookalike");
+    if (lookalike) {
+      reasons.push({ code: "lookalikeLink", brand: lookalike.brand, target: check?.host ?? target });
+      score += 3;
+      linkReasons++;
+    } else if (check?.warnings.some((w) => w.code === "userinfo" || w.code === "mixedScript")) {
+      reasons.push({ code: "disguisedLink", target: check.host });
+      score += 3;
+      linkReasons++;
+    } else if (/^\d{1,3}(\.\d{1,3}){3}$/.test(target)) {
       reasons.push({ code: "ipLink", target });
       score += 3;
       linkReasons++;

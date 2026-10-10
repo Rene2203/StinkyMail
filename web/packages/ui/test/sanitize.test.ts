@@ -21,6 +21,19 @@ describe("HTML-Mails säubern", () => {
     expect(result.html).toContain("data:image/png");
   });
 
+  it("Zählpixel bleiben blockiert, auch wenn externe Bilder geladen werden; Ziel als Tooltip am Link", () => {
+    const html = '<img src="https://shop.example/foto.jpg" width="400"><img src="https://shop.us1.list-manage.com/track/open.php?u=1" width="1" height="1"><a href="https://shop.example/a">Shop</a>';
+    const blocked = sanitizeEmailHtml(html);
+    expect(blocked.trackers).toEqual(["Mailchimp"]);
+    expect(blocked.blockedRemote).toBe(2);
+    const loaded = sanitizeEmailHtml(html, { allowRemote: true });
+    expect(loaded.blockedRemote).toBe(0);
+    expect(loaded.html).toContain("shop.example/foto.jpg");
+    expect(loaded.html).not.toContain("list-manage");
+    expect(loaded.trackers).toEqual(["Mailchimp"]);
+    expect(loaded.html).toContain('title="https://shop.example/a"');
+  });
+
   it("Links öffnen außerhalb der App", () => {
     const { html } = sanitizeEmailHtml('<a href="https://example.org/info">Info</a><a href="mailto:a@example.org">Mail</a>');
     expect(html).toContain('target="_blank"');

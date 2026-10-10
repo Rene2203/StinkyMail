@@ -3,7 +3,7 @@
 Laufendes Protokoll des Zwischenstands. Wird nach jedem größeren Arbeitsschritt aktualisiert –
 nicht erst am Ende einer Phase. Abgeschlossene Phasen stehen zusätzlich in `CHANGELOG.md`.
 
-**Zuletzt aktualisiert:** 03.10.2026
+**Zuletzt aktualisiert:** 10.10.2026
 **Aktueller Fokus:** Windows-App (`web/`), danach Server mit Browser – Roadmap: `docs/ROADMAP-WINDOWS.md`
 **Aktuelle Phase:** W5 – KI-Basis. W5.1–W5.4 gebaut, Windows-CI grün; Messlauf fertig → **Standardmodell Gemma 4 E2B**. **W6 – Assistent:** W6.1 (Zu tun: Termine/Fristen/Zahlungen), W6.2 (Phishing-Check), W6.3 (Türsteher), W6.4 (Regeln in eigenen Worten), W6.5 (Antwortvorschläge) und W6.6 (Tagesüberblick) fertig, lokal geprüft und vom Nutzer unter Windows mit echtem Gmail-Konto getestet – **W6 abgeschlossen**. Danach (Wunsch des Nutzers): Zeitraum „alle Mails“, **Aufräumen**, **Newsletter abbestellen** (Abmelde-Seite im verschiebbaren Fenster in der App) und Umbenennung in **StinkyMail** – gebaut, lokal geprüft. Als Nächstes: Feinabstimmung der Modelle
 
@@ -681,4 +681,23 @@ App Intents, großes RAM-Limit für lokale Modelle), lassen sich derzeit nicht a
   Laufzeit-Tests mit Testmodell grün. Stand: 455 Unit-Tests grün (ohne GreenMail), E2E 22 grün.
 - **Ungeprüft:** echtes Postfach mit vielen tausend Mails (Geschwindigkeit der Abfrage; läuft in einem Durchgang),
   Darstellung unter Windows.
+
+### 10.10.2026 – W11 Block 1: Link-Prüfer und Tracker-Report
+- **Rückmeldung des Nutzers:** W8–W10 unter Windows gut getestet, „sieht alles soweit gut aus“; vereinzelt falsche
+  Einordnungen (marginal) → Feinabstimmung am Schluss, der Nutzer stellt dafür anonymisierte Beispielmails bereit.
+  Vereinbarte Reihenfolge: (1) kleine Komfort-/Sicherheitsfunktionen (Link-Prüfer, Tracker-Report, Schlummern, später
+  senden, Nachhak-Wächter), (2) Paket-Übersicht und Reise-Zeitleiste, (3) Server mit Browser (S1), UI-Überarbeitung
+  sobald der Nutzer Ideen hat, (4) Feinabstimmung mit echten Fallbeispielen.
+- **W11.1 Link-Prüfer – gebaut, lokal geprüft:** Klicks im HTML-Frame werden abgefangen (geht trotz Sandbox ohne Skripte,
+  E2E mit echter Electron-App bestätigt), Prüfung per Code (`core/src/links.ts`), Rückfrage-Dialog mit echtem Ziel.
+  Unit-Tests für Doppelgänger, Punycode (eigener Dekoder nach RFC 3492), Tarnung mit @, Kurzlinks, Textlinks; E2E in
+  `app.spec` (Textmail) und `account.spec` (HTML-Mail über GreenMail).
+  **Ungeprüft:** Fehlalarme mit echten Newslettern (Klickzähler zeigen „Vorsicht“ – wie störend das ist, zeigt erst der
+  Alltag), Markenliste ist eine Auswahl; „Öffnen“ ruft unter Windows den Standard-Browser (wie bisher, nicht neu getestet).
+- **W11.2 Tracker-Report – gebaut, lokal geprüft:** Zählpixel nach Größe/Unsichtbarkeit/Pfad und ~80 bekannten
+  Versand-/Tracking-Domains; bleiben auch nach „Externe Inhalte laden“ blockiert (E2E angepasst: vorher wurde das 1×1-Pixel
+  dort geladen – jetzt bewusst nicht mehr). Statistik „Wer trackt“; Migration v25, ältere Mails werden beim Öffnen der
+  Statistik stückweise (1000 je Aufruf) nachgeprüft. **Ungeprüft:** Trefferquote mit echten Newslettern; große Bilder
+  eines Versanddienstes gelten bewusst nicht als Pixel (kann einzelne Tracker übersehen).
+- Stand Tests: 493 Unit-Tests grün (inkl. GreenMail und Laufzeit mit Testmodell), E2E 22 grün / 2 übersprungen, auch mit 1024×768.
 

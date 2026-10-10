@@ -12,6 +12,10 @@ export function reasonText(reason: PhishingReason, t: Translate): string {
       return t("phishing.freemailOfficial", { name: reason.name, domain: reason.domain });
     case "linkMismatch":
       return t("phishing.linkMismatch", { shown: reason.shown, target: reason.target });
+    case "lookalikeLink":
+      return t("phishing.lookalikeLink", { brand: reason.brand, target: reason.target });
+    case "disguisedLink":
+      return t("phishing.disguisedLink", { target: reason.target });
     case "ipLink":
       return t("phishing.ipLink", { target: reason.target });
     case "shortLink":

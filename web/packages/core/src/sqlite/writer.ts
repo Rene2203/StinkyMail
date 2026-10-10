@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { Account, EmailAddress, Mailbox, MessageCategory } from "../models.js";
+import { trackerReport } from "../trackers.js";
 import { accountFromRow, mailboxFromRow } from "./repository.js";
 
 type Row = Record<string, unknown>;
@@ -163,14 +164,15 @@ export class MailWriter {
       const inserted = this.db
         .prepare(
           `INSERT OR IGNORE INTO message (id, accountId, mailboxId, uid, messageId, threadId, fromName, fromAddress, "to", cc,
-             subject, date, snippet, bodyText, bodyHTML, flags, hasAttachments, category, listUnsubscribe)
+             subject, date, snippet, bodyText, bodyHTML, flags, hasAttachments, category, listUnsubscribe, trackers)
            VALUES (@id, @accountId, @mailboxId, @uid, @messageId, @threadId, @fromName, @fromAddress, @to, @cc,
-             @subject, @date, @snippet, @bodyText, @bodyHtml, @flags, @hasAttachments, @category, @listUnsubscribe)`,
+             @subject, @date, @snippet, @bodyText, @bodyHtml, @flags, @hasAttachments, @category, @listUnsubscribe, @trackers)`,
         )
         .run({
           ...m,
           category: m.category ?? null,
           listUnsubscribe: m.listUnsubscribe ?? null,
+          trackers: trackersColumn(m.bodyHtml),
           fromName: m.from.name ?? null,
           fromAddress: m.from.address,
           to: JSON.stringify(m.to),
@@ -442,4 +444,10 @@ function uniqueAddresses(list: EmailAddress[]): EmailAddress[] {
     seen.add(key);
     return true;
   });
+}
+
+/** Spalte `message.trackers`: Dienste mit Zählpixel als JSON-Liste, '' = keins */
+export function trackersColumn(html: string | null | undefined): string {
+  const pixels = trackerReport(html).pixels.map((p) => p.service);
+  return pixels.length ? JSON.stringify(pixels) : "";
 }

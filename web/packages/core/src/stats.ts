@@ -35,6 +35,8 @@ export interface MailboxStats {
   busiestHour: number | null;
   /** Vorschläge der Mail-Diät */
   suggestions: DietSuggestion[];
+  /** Tracker-Report (W11.2): wer Zählpixel schickt – blockiert sind sie ohnehin */
+  tracking: { mails: number; senders: { address: string; name: string | null; mails: number; services: string[] }[]; services: { service: string; mails: number }[] };
 }
 
 export type DietKind = "unsubscribe" | "autoArchive";

@@ -30,7 +30,7 @@ const htmlMail = [
   "Message-ID: <html-1@stadtwerke.example>",
   "Content-Type: text/html; charset=utf-8",
   "",
-  '<h1 style="color:#0a7">Ihre Rechnung</h1><p>Betrag: <b>86,00&nbsp;€</b></p><script>document.title="gehackt"</script><img src="https://tracker.example/pixel.gif" width="1" height="1"><p><a href="https://stadtwerke.example/konto">Zum Kundenkonto</a></p>',
+  '<h1 style="color:#0a7">Ihre Rechnung</h1><p>Betrag: <b>86,00&nbsp;€</b></p><script>document.title="gehackt"</script><img src="https://stadtwerke.example/logo.png" width="120" height="40"><img src="https://tracker.example/pixel.gif" width="1" height="1"><p><a href="https://stadtwerke.example/konto">Zum Kundenkonto</a></p><p><a href="https://login.betrug.example/sparkasse">www.sparkasse.de</a></p>',
   "",
 ].join("\r\n");
 
@@ -133,7 +133,20 @@ test("Konto einrichten, Mails abrufen, HTML sicher anzeigen", async () => {
   expect(await page.title()).toBe("StinkyMail");
   await expect(frame.locator("script")).toHaveCount(0);
   await expect(frame.locator("img[src*='tracker']")).toHaveCount(0);
+  // Tracker-Report: das Zählpixel wird benannt
+  await expect(page.getByTestId("tracker-note")).toContainText("1 Zählpixel: tracker.example");
   await page.screenshot({ path: join(screenshotDir, "08-HTML-Mail.png") });
+
+  await test.step("Link-Prüfer: getarnter Link wird vor dem Öffnen gezeigt", async () => {
+    await frame.getByRole("link", { name: "www.sparkasse.de" }).click();
+    const dialog = page.getByTestId("link-dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByTestId("link-host")).toHaveText("login.betrug.example");
+    await expect(dialog).toContainText("www.sparkasse.de");
+    await page.screenshot({ path: join(screenshotDir, "08b-Link-Pruefer.png") });
+    await dialog.getByTestId("link-cancel").click();
+    await expect(dialog).toHaveCount(0);
+  });
 
   await test.step("Ausnahme über Optionen: Absender lädt externe Inhalte sofort", async () => {
     await page.getByTestId("remote-always").click();
@@ -148,7 +161,10 @@ test("Konto einrichten, Mails abrufen, HTML sicher anzeigen", async () => {
     await page.screenshot({ path: join(screenshotDir, "09-Optionen-Ausnahmen.png") });
     await dialog.getByRole("button", { name: "Fertig" }).click();
     await expect(dialog).toHaveCount(0);
-    await expect(frame.locator("img[src*='tracker']")).toHaveCount(1);
+    // Bilder geladen, das Zählpixel bleibt blockiert
+    await expect(frame.locator("img[src*='logo.png']")).toHaveCount(1);
+    await expect(frame.locator("img[src*='tracker']")).toHaveCount(0);
+    await expect(page.getByTestId("trackers-kept")).toContainText("tracker.example");
     await expect(frame.locator("script")).toHaveCount(0);
     await expect(page.getByText("Ausnahme für stadtwerke.example")).toBeVisible();
   });
@@ -160,9 +176,10 @@ test("Konto einrichten, Mails abrufen, HTML sicher anzeigen", async () => {
     await expect(dialog.getByTestId("remote-exception")).toHaveCount(0);
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
-    await expect(frame.locator("img[src*='tracker']")).toHaveCount(0);
+    await expect(frame.locator("img[src*='logo.png']")).toHaveCount(0);
     await page.getByRole("button", { name: "Externe Inhalte laden" }).click();
-    await expect(frame.locator("img[src*='tracker']")).toHaveCount(1);
+    await expect(frame.locator("img[src*='logo.png']")).toHaveCount(1);
+    await expect(frame.locator("img[src*='tracker']")).toHaveCount(0);
     await expect(page.getByText("Externe Inhalte wurden blockiert")).toHaveCount(0);
   });
 

@@ -138,6 +138,46 @@ function Overview({ data }: { data: MailboxStats }) {
           </ul>
         </div>
       </div>
+
+      <h3 className="stats-heading">{t("stats.tracking")}</h3>
+      <p className="muted small" data-testid="stats-tracking">
+        {data.tracking.mails === 0 ? t("stats.trackingNone") : t("stats.trackingSummary", { mails: data.tracking.mails, share: percent(data.tracking.mails / Math.max(1, data.received)) })}
+      </p>
+      {data.tracking.senders.length > 0 && (
+        <div className="stats-columns">
+          <table className="stats-table" data-testid="stats-tracking-senders">
+            <thead>
+              <tr>
+                <th scope="col">{t("stats.sender")}</th>
+                <th scope="col">{t("stats.trackingMails")}</th>
+                <th scope="col">{t("stats.trackingVia")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.tracking.senders.map((s) => (
+                <tr key={s.address}>
+                  <td>
+                    <span className="stats-sender" title={s.address}>{s.name ?? s.address}</span>
+                  </td>
+                  <td>{s.mails}</td>
+                  <td className="stats-services" title={s.services.join(", ")}>{s.services.join(", ")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <ul className="stats-categories">
+            {data.tracking.services.slice(0, 8).map((sv) => (
+              <li key={sv.service}>
+                <span className="stats-sender" title={sv.service}>{sv.service}</span>
+                <span className="stats-meter" aria-hidden="true">
+                  <span style={{ width: `${(sv.mails / Math.max(1, data.tracking.mails)) * 100}%` }} />
+                </span>
+                <span className="muted small">{sv.mails}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </>
   );
 }
