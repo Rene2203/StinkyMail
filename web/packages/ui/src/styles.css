@@ -4523,3 +4523,99 @@ dialog.webpanel::backdrop {
   font-size: 12px;
   color: var(--fg-muted);
 }
+
+/* Schlummern (W11.3) */
+
+.snooze {
+  position: relative;
+  display: inline-flex;
+}
+
+.snooze-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+
+.snooze-title {
+  margin: 2px 8px 6px;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+.snooze-menu > button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  text-align: left;
+}
+
+.snooze-menu > button:hover,
+.snooze-menu > button:focus-visible {
+  background: var(--bg-hover);
+}
+
+.snooze-menu > button span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.snooze-custom {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.snooze-custom input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 5px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.snooze-custom button {
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg-card);
+  color: var(--fg);
+  padding: 3px 8px;
+}
+
+.row-woken,
+.row-snoozed {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}

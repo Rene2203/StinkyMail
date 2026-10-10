@@ -502,6 +502,34 @@ test("Statistik & Mail-Diät: Zahlen ohne KI, Wochen-Diagramm, Zeitraum wechseln
   await page.getByTestId("sidebar-unifiedInbox").click();
 });
 
+test("Schlummern: Mail verschwindet bis morgen, steht unter „Geschlummert“, aufwecken bringt sie zurück", async () => {
+  await page.getByRole("searchbox").fill("");
+  await page.getByTestId("sidebar-unifiedInbox").click();
+  const subject = "Ihre Abschlagsrechnung Oktober";
+  await rows().filter({ hasText: subject }).click();
+  await page.keyboard.press("b");
+  const menu = page.getByTestId("snooze-menu");
+  await expect(menu).toBeVisible();
+  await expect(menu.getByTestId("snooze-tomorrow")).toBeVisible();
+  await shot("40-Schlummern");
+  await menu.getByTestId("snooze-tomorrow").click();
+  await expect(menu).toHaveCount(0);
+  await expect(rows().filter({ hasText: subject })).toHaveCount(0);
+  const snoozed = page.getByTestId("sidebar-snoozed");
+  await expect(snoozed).toBeVisible();
+  await expect(snoozed.locator(".badge")).toHaveText("1");
+  await snoozed.click();
+  await expect(page.getByTestId("list-title")).toHaveText("Geschlummert");
+  const row = rows().filter({ hasText: subject });
+  await expect(row).toBeVisible();
+  await row.click();
+  await page.getByTestId("action-snooze").click();
+  await page.getByTestId("snooze-wake").click();
+  await page.getByTestId("sidebar-unifiedInbox").click();
+  await expect(rows().filter({ hasText: subject })).toBeVisible();
+  await expect(page.getByTestId("sidebar-snoozed")).toHaveCount(0);
+});
+
 test("Änderungen bleiben nach Neustart erhalten (SQLite-Datei)", async () => {
   await page.getByRole("searchbox").fill("");
   await page.getByTestId("sidebar-unifiedInbox").click();

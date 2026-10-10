@@ -164,6 +164,8 @@ export type MessageScope =
   | { kind: "screener" }
   /** Wichtige Mails im Posteingang (Priorisierung W8.3) */
   | { kind: "important" }
+  /** Schlummernde Mails (W11.3), nächster Weckzeitpunkt zuerst */
+  | { kind: "snoozed" }
   /** Alle Mails einer Kategorie (Posteingang, Archiv, eigene Ordner): feste Kategorie oder eigene als `u:<id>` */
   | { kind: "category"; category: string };
 

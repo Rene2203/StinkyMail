@@ -185,6 +185,10 @@ function useKeyboardShortcuts() {
         case "s":
           if (message) void store.toggleFlag(message.id);
           break;
+        case "b":
+          // Schlummern: Menü mit den Zeitvorschlägen öffnen
+          if (message) document.querySelector<HTMLButtonElement>("[data-testid='action-snooze']")?.click();
+          break;
         case "u":
           if (message) void store.toggleRead(message.id);
           break;

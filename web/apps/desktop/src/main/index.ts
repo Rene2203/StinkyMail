@@ -413,9 +413,39 @@ function startSync(): void {
   reminderTimer = setInterval(checkReminders, 30_000);
 }
 
+let snoozeCheckedAt = new Date().toISOString();
+
+/** Geschlummerte Mails, die gerade aufgewacht sind: Liste auffrischen und kurz melden (W11.3) */
+function checkSnoozed(): void {
+  if (!service) return;
+  const now = new Date().toISOString();
+  const woken = service.wokenBetween(snoozeCheckedAt, now);
+  snoozeCheckedAt = now;
+  if (woken.length === 0) return;
+  notifyRenderer();
+  const mode = settings?.settings.notifications ?? "full";
+  if (mode === "off" || !Notification.isSupported() || mainWindow?.isFocused()) return;
+  const [first] = woken;
+  if (!first) return;
+  const de = german();
+  const notification = new Notification({
+    title: de ? "Wieder da" : "Back",
+    body:
+      mode === "minimal" || woken.length > 1
+        ? de ? `${woken.length} geschlummerte Mail${woken.length === 1 ? " ist" : "s sind"} wieder da` : `${woken.length} snoozed email${woken.length === 1 ? " is" : "s are"} back`
+        : first.subject || (de ? "(kein Betreff)" : "(no subject)"),
+  });
+  notification.on("click", () => {
+    showWindow();
+    mainWindow?.webContents.send("mail:open", first.id);
+  });
+  notification.show();
+}
+
 /** Fällige Erinnerungen als Windows-Benachrichtigung; Klick öffnet die Mail. */
 function checkReminders(): void {
   void checkDigest();
+  checkSnoozed();
   const due = ai?.takeDueReminders() ?? [];
   if (due.length === 0 || !Notification.isSupported()) return;
   const de = german();

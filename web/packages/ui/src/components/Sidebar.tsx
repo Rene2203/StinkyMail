@@ -21,6 +21,8 @@ export function sidebarTitle(item: SidebarItem, t: Translate): string {
       return t("sidebar.important");
     case "screener":
       return t("sidebar.screener");
+    case "snoozed":
+      return t("sidebar.snoozed");
     case "mailbox":
       return item.kind.mailbox.role === "custom" ? item.kind.mailbox.name : t(`role.${item.kind.mailbox.role}`);
   }

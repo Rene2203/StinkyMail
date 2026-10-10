@@ -64,6 +64,8 @@ export interface MailRepository {
   setSyncDays(accountId: string, days: number | null): Promise<void>;
   /** Absender erlauben (Mails erscheinen im Posteingang) oder blockieren (Mails verschwinden aus dem Posteingang). */
   decideSender(address: string, decision: "allow" | "block"): Promise<void>;
+  /** Schlummern bis `until` (ISO) bzw. aufwecken (`null`). Nur lokal, der Server erfährt davon nichts. */
+  snooze(messageIds: string[], until: string | null): Promise<void>;
 }
 
 /** Eine Mail im Postausgang (noch nicht gesendet). */
@@ -91,6 +93,8 @@ export interface UnreadCounts {
   screener: number;
   /** Ungelesene wichtige Mails im Posteingang (W8.3; fehlt bei älteren Quellen). */
   important?: number;
+  /** Schlummernde Mails – gelesen oder nicht (W11.3; fehlt bei älteren Quellen). */
+  snoozed?: number;
 }
 
 export interface MailOverview {
@@ -128,6 +132,7 @@ export const mailRepositoryMethods = [
   "search",
   "setScreener",
   "decideSender",
+  "snooze",
 ] as const satisfies readonly (keyof MailRepository)[];
 
 export type MailRepositoryMethod = (typeof mailRepositoryMethods)[number];

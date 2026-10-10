@@ -13,6 +13,7 @@ import { AttachmentInsight, AttachmentStatus } from "./AttachmentInsight.js";
 import { composeLabels } from "../composeLabels.js";
 import { SafeHtml } from "./SafeHtml.js";
 import { LinkedText } from "./LinkedText.js";
+import { SnoozeMenu } from "./SnoozeMenu.js";
 import { SummaryCard } from "./SummaryCard.js";
 import { ActionsCard } from "./ActionsCard.js";
 import { MeetingCard } from "./MeetingCard.js";
@@ -115,6 +116,7 @@ export function MessageDetail() {
             <button type="button" title={`${flagged ? t("action.unflag") : t("action.flag")} (S)`} onClick={() => void store.toggleFlag(message.id)}>
               {flagged ? <FlagOff size={17} /> : <Flag size={17} />}
             </button>
+            <SnoozeMenu message={message} />
             <button type="button" title={`${t("action.archive")} (E)`} onClick={() => void store.archive([message.id])}>
               <Archive size={17} />
             </button>

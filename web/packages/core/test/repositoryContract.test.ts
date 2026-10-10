@@ -112,6 +112,35 @@ describe.each(implementations)("MailRepository (%s)", (_name, make) => {
     await expect(repo.decideSender("keine-adresse", "allow")).rejects.toThrow(/Ungültige/);
   });
 
+  it("Schlummern: verschwindet aus Posteingang und Zählern, steht unter „Geschlummert“, kommt aufgewacht oben wieder", async () => {
+    const repo = make();
+    const inbox = await repo.messages({ kind: "unifiedInbox" }, 100);
+    const target = inbox.find((m) => !isRead(m)) ?? inbox[0];
+    if (!target) throw new Error("keine Mail");
+    const unreadBefore = await repo.unreadCount({ kind: "unifiedInbox" });
+    const later = new Date(Date.now() + 3_600_000).toISOString();
+    await repo.snooze([target.id], later);
+    expect((await repo.messages({ kind: "unifiedInbox" }, 100)).some((m) => m.id === target.id)).toBe(false);
+    expect((await repo.messages({ kind: "mailbox", mailboxId: target.mailboxId }, 100)).some((m) => m.id === target.id)).toBe(false);
+    expect(await repo.unreadCount({ kind: "unifiedInbox" })).toBe(unreadBefore - (isRead(target) ? 0 : 1));
+    const snoozed = await repo.messages({ kind: "snoozed" }, 10);
+    expect(snoozed.map((m) => m.id)).toEqual([target.id]);
+    expect(snoozed[0]?.snoozedUntil).toBe(later);
+    expect((await repo.overview()).counts.snoozed).toBe(1);
+
+    // Aufgewacht (Zeitpunkt vorbei, nach dem Mail-Datum): wieder im Posteingang, ganz oben
+    await repo.snooze([target.id], new Date(Date.now() - 60_000).toISOString());
+    const back = await repo.messages({ kind: "unifiedInbox" }, 100);
+    expect(back[0]?.id).toBe(target.id);
+    expect(await repo.messages({ kind: "snoozed" }, 10)).toEqual([]);
+    expect((await repo.overview()).counts.snoozed).toBe(0);
+    // Aufwecken/zurücksetzen: normale Reihenfolge
+    await repo.snooze([target.id], null);
+    const dates = (await repo.messages({ kind: "unifiedInbox" }, 100)).map((m) => m.date);
+    expect(dates).toEqual([...dates].sort().reverse());
+    await expect(repo.snooze([target.id], "kein Datum")).rejects.toThrow();
+  });
+
   it("verschiebt in den Ordner des jeweiligen Kontos", async () => {
     const repo = make();
     const inbox = await repo.messages({ kind: "unifiedInbox" }, 100);

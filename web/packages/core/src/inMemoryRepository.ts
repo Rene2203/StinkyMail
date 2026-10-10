@@ -1,5 +1,6 @@
 import type { Account, Attachment, EmailAddress, Mailbox, MailboxRole, Message, MessageFlagName, MessageScope } from "./models.js";
 import { importantThreshold } from "./priority.js";
+import { isSnoozed, listTime } from "./snooze.js";
 import { MessageFlag, mailboxRoleRank } from "./models.js";
 import type { MailOverview, MailRepository, UnreadCounts } from "./repository.js";
 import type { MockDataSet } from "./mockData.js";
@@ -31,8 +32,9 @@ export class InMemoryMailRepository implements MailRepository {
   }
 
   async messages(scope: MessageScope, limit: number): Promise<Message[]> {
+    const now = new Date();
     return this.#inScope(scope)
-      .sort((a, b) => b.date.localeCompare(a.date))
+      .sort((a, b) => (scope.kind === "snoozed" ? (a.snoozedUntil ?? "").localeCompare(b.snoozedUntil ?? "") : listTime(b, now).localeCompare(listTime(a, now))))
       .slice(0, limit)
       .map((m) => structuredClone(m));
   }
@@ -64,9 +66,10 @@ export class InMemoryMailRepository implements MailRepository {
     const accounts = await this.accounts();
     const mailboxesByAccount: Record<string, Mailbox[]> = {};
     for (const account of accounts) mailboxesByAccount[account.id] = await this.mailboxes(account.id);
-    const counts: UnreadCounts = { unifiedInbox: 0, unread: 0, flagged: 0, mailboxes: {}, screener: 0, important: 0 };
+    const counts: UnreadCounts = { unifiedInbox: 0, unread: 0, flagged: 0, mailboxes: {}, screener: 0, important: 0, snoozed: 0 };
     for (const m of this.#data.messages) {
       const role = this.#roleOf(m.mailboxId);
+      if (role !== "trash" && isSnoozed(m)) counts.snoozed = (counts.snoozed ?? 0) + 1;
       if (role === "inbox" && this.#pending(m)) counts.screener += 1;
       if (this.#screenedOut(m)) continue;
       if ((m.flags & MessageFlag.seen) !== 0) continue;
@@ -110,7 +113,13 @@ export class InMemoryMailRepository implements MailRepository {
   /** Posteingangs-Mail, die nicht im Posteingang erscheinen soll (wartend oder blockiert) */
   #screenedOut(m: Message): boolean {
     if (this.#roleOf(m.mailboxId) !== "inbox") return false;
-    return this.#senderDecisions.get(m.from.address.toLowerCase()) === "block" || this.#pending(m);
+    return this.#senderDecisions.get(m.from.address.toLowerCase()) === "block" || this.#pending(m) || isSnoozed(m);
+  }
+
+  async snooze(messageIds: string[], until: string | null): Promise<void> {
+    if (until !== null && Number.isNaN(Date.parse(until))) throw new Error("Ungültiger Zeitpunkt.");
+    const ids = new Set(messageIds);
+    for (const m of this.#data.messages) if (ids.has(m.id)) m.snoozedUntil = until === null ? null : new Date(until).toISOString();
   }
 
   async setFlag(flag: MessageFlagName, enabled: boolean, messageIds: string[]): Promise<void> {
@@ -278,6 +287,7 @@ export class InMemoryMailRepository implements MailRepository {
     return this.#data.messages.filter((m) => {
       const role = this.#roleOf(m.mailboxId);
       if (scope.kind === "screener") return role === "inbox" && this.#pending(m);
+      if (scope.kind === "snoozed") return role !== "trash" && isSnoozed(m);
       if (this.#screenedOut(m)) return false;
       switch (scope.kind) {
         case "unifiedInbox":

@@ -1,5 +1,5 @@
-import { Archive, Flag, FlagOff, Mail, MailOpen, Paperclip, Search, ShieldAlert, SquarePen, Star, Trash2 } from "lucide-react";
-import { assessPhishing, displayName, importantThreshold, isFlagged, isRead, type Message, type MessageScope } from "@stinkyma/core";
+import { AlarmClock, Archive, Flag, FlagOff, Mail, MailOpen, Paperclip, Search, ShieldAlert, SquarePen, Star, Trash2 } from "lucide-react";
+import { assessPhishing, displayName, importantThreshold, isFlagged, isRead, isSnoozed, isWoken, type Message, type MessageScope } from "@stinkyma/core";
 import type { BrowserState } from "../store.js";
 import type { MessageKey, Translate } from "../i18n.js";
 import { useState, type MouseEvent } from "react";
@@ -158,7 +158,20 @@ function MessageRow(props: {
           {message.hasAttachments && <Paperclip className="muted" size={13} aria-label={t("list.hasAttachment")} />}
           {(message.priorityScore ?? 0) >= importantThreshold && <Star className="row-important" size={12} fill="currentColor" aria-label={t("list.important")} data-testid="row-important" />}
           {assessPhishing(message).level === "danger" && <ShieldAlert className="row-phishing" size={13} aria-label={t("phishing.listHint")} data-testid="row-phishing" />}
-          <span className="row-date">{formatListDate(message.date, locale, t)}</span>
+          {isWoken(message) && (
+            <span className="row-woken" data-testid="row-woken">
+              <AlarmClock size={11} aria-hidden="true" /> {t("snooze.back")}
+            </span>
+          )}
+          <span className="row-date">
+            {isSnoozed(message) && message.snoozedUntil ? (
+              <span className="row-snoozed" title={t("snooze.until", { when: new Date(message.snoozedUntil).toLocaleString(locale === "de" ? "de-DE" : "en-GB") })}>
+                <AlarmClock size={11} aria-hidden="true" /> {formatListDate(message.snoozedUntil, locale, t)}
+              </span>
+            ) : (
+              formatListDate(isWoken(message) && message.snoozedUntil ? message.snoozedUntil : message.date, locale, t)
+            )}
+          </span>
         </div>
         <div className="row-subject">{message.subject}</div>
         <div className="row-snippet">{message.snippet}</div>

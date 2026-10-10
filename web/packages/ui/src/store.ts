@@ -17,6 +17,7 @@ import {
   type AttachmentsApi,
   type MeetingsApi,
   type MailboxStats,
+  isWoken,
   type LinkCheck,
   checkLink,
   parseMailto,
@@ -99,6 +100,7 @@ export type SidebarItemKind =
   | { type: "flagged" }
   | { type: "important" }
   | { type: "screener" }
+  | { type: "snoozed" }
   | { type: "mailbox"; mailbox: Mailbox };
 
 export interface SidebarItem {
@@ -2248,6 +2250,8 @@ export class BrowserStore {
       ];
       // Türsteher: eigener Bereich, sobald er bei einem Konto an ist (Zähler = wartende Mails)
       if (accounts.some((a) => a.screener)) smart.push([{ type: "screener" }, { kind: "screener" }, counts.screener]);
+      // Geschlummert (W11.3): nur zeigen, wenn es etwas gibt (oder der Bereich gerade offen ist); Zähler = alle schlummernden
+      if ((counts.snoozed ?? 0) > 0 || this.#state.selectedScope.kind === "snoozed") smart.push([{ type: "snoozed" }, { kind: "snoozed" }, counts.snoozed ?? 0]);
       const sections: SidebarSection[] = [
         { id: "smart", account: null, items: smart.map(([kind, scope, unreadCount]) => ({ kind, scope, unreadCount })) },
         ...accounts.map((account) => ({
@@ -2362,6 +2366,39 @@ export class BrowserStore {
       if (request !== this.#threadRequest) return;
       this.#set({ thread: thread.length ? thread : [message], attachmentsByMessageId });
       if (!isRead(message)) await this.#setFlag("seen", true, [message.id]);
+      // „Wieder da“ gilt bis zum Öffnen
+      if (isWoken(message)) await this.#clearWoken(message.id);
+    });
+  }
+
+  async #clearWoken(id: string): Promise<void> {
+    await this.#repository.snooze([id], null);
+    const clear = (list: Message[]) => list.map((m) => (m.id === id ? { ...m, snoozedUntil: null } : m));
+    this.#set({ messages: clear(this.#state.messages), thread: clear(this.#state.thread) });
+  }
+
+  /** Schlummern bis `until` (W11.3): verschwindet aus dem Posteingang wie beim Archivieren, kommt dann oben wieder */
+  async snooze(ids: string[], until: Date): Promise<void> {
+    if (ids.length === 0) return;
+    const inSnoozedView = this.#state.selectedScope.kind === "snoozed";
+    if (!inSnoozedView) {
+      const next = this.#selectionAfterRemoving(ids);
+      const selected = this.#state.selectedMessageId;
+      const keep = (list: Message[]) => list.filter((m) => !ids.includes(m.id));
+      this.#set({ messages: keep(this.#state.messages), searchResults: this.#state.searchResults && keep(this.#state.searchResults) });
+      if (selected !== null && ids.includes(selected)) void this.selectMessage(next);
+    }
+    await this.#guard(async () => {
+      await this.#repository.snooze(ids, until.toISOString());
+      await Promise.all([this.loadMessages(), this.loadSidebar()]);
+    });
+  }
+
+  /** Sofort aufwecken: zurück in den Posteingang */
+  async unsnooze(ids: string[]): Promise<void> {
+    await this.#guard(async () => {
+      await this.#repository.snooze(ids, null);
+      await Promise.all([this.loadMessages(), this.loadSidebar()]);
     });
   }
 

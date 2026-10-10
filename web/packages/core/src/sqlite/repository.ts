@@ -86,8 +86,13 @@ const blockedSender = `EXISTS (SELECT 1 FROM senderDecision d WHERE d.address = 
 /** Türsteher des Kontos an und Absender noch nicht erlaubt (auch nicht blockiert) */
 const pendingSender = `(SELECT screener FROM account WHERE account.id = message.accountId) = 1
   AND NOT EXISTS (SELECT 1 FROM senderDecision d WHERE d.address = lower(message.fromAddress))`;
-/** Posteingangs-Mail, die (noch) nicht im Posteingang erscheinen soll */
-export const screenedOut = `(mailbox.role = 'inbox' AND (${blockedSender} OR (${pendingSender})))`;
+const nowIso = `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
+/** Schlummert gerade (W11.3) */
+export const snoozedNow = `(message.snoozedUntil IS NOT NULL AND message.snoozedUntil > ${nowIso})`;
+/** Aufgewacht, noch nicht geöffnet – steht zum Weckzeitpunkt oben */
+const woken = `(message.snoozedUntil IS NOT NULL AND message.snoozedUntil <= ${nowIso} AND message.snoozedUntil > message.date)`;
+/** Posteingangs-Mail, die (noch) nicht im Posteingang erscheinen soll: Türsteher, blockiert oder schlummernd */
+export const screenedOut = `(mailbox.role = 'inbox' AND (${blockedSender} OR (${pendingSender}) OR ${snoozedNow}))`;
 
 export function scopeCondition(scope: MessageScope): { sql: string; params: unknown[] } {
   switch (scope.kind) {
@@ -99,6 +104,8 @@ export function scopeCondition(scope: MessageScope): { sql: string; params: unkn
       return { sql: `mailbox.role <> ? AND (message.flags & ?) <> 0 AND NOT ${archiveDuplicate} AND NOT ${screenedOut}`, params: ["trash", MessageFlag.flagged] };
     case "mailbox":
       return { sql: `message.mailboxId = ? AND NOT ${screenedOut}`, params: [scope.mailboxId] };
+    case "snoozed":
+      return { sql: `mailbox.role <> 'trash' AND ${snoozedNow}`, params: [] };
     case "screener":
       return { sql: `mailbox.role = ? AND ${pendingSender}`, params: ["inbox"] };
     case "important":
@@ -131,10 +138,38 @@ export class SqliteMailRepository implements MailRepository {
 
   async messages(scope: MessageScope, limit: number): Promise<Message[]> {
     const { sql, params } = scopeCondition(scope);
-    const rows = this.db
-      .prepare(`SELECT message.* FROM message JOIN mailbox ON mailbox.id = message.mailboxId WHERE ${sql} ORDER BY message.date DESC LIMIT ?`)
-      .all(...params, limit) as Row[];
-    return rows.map(messageFromRow);
+    const from = "FROM message JOIN mailbox ON mailbox.id = message.mailboxId";
+    if (scope.kind === "snoozed") {
+      return (this.db.prepare(`SELECT message.* ${from} WHERE ${sql} ORDER BY message.snoozedUntil LIMIT ?`).all(...params, limit) as Row[]).map(messageFromRow);
+    }
+    const rows = this.db.prepare(`SELECT message.* ${from} WHERE ${sql} ORDER BY message.date DESC LIMIT ?`).all(...params, limit) as Row[];
+    // Aufgewachte Mails (wenige) gehören nach oben – getrennt holen, damit die Liste den Datums-Index nutzt
+    const wokenRows = this.db.prepare(`SELECT message.* ${from} WHERE ${sql} AND ${woken}`).all(...params) as Row[];
+    if (wokenRows.length === 0) return rows.map(messageFromRow);
+    const seen = new Set(wokenRows.map((r) => String(r.id)));
+    const key = (r: Row) => (seen.has(String(r.id)) ? String(r.snoozedUntil) : String(r.date));
+    return [...wokenRows, ...rows.filter((r) => !seen.has(String(r.id)))]
+      .sort((a, b) => key(b).localeCompare(key(a)))
+      .slice(0, limit)
+      .map(messageFromRow);
+  }
+
+  /** Aufgewacht im Zeitraum (since, until] – nicht im Papierkorb */
+  wokenBetween(since: string, until: string): Message[] {
+    return (
+      this.db
+        .prepare(`SELECT message.* FROM message JOIN mailbox ON mailbox.id = message.mailboxId WHERE mailbox.role <> 'trash' AND message.snoozedUntil > ? AND message.snoozedUntil <= ? ORDER BY message.snoozedUntil`)
+        .all(since, until) as Row[]
+    ).map(messageFromRow);
+  }
+
+  async snooze(messageIds: string[], until: string | null): Promise<void> {
+    if (until !== null && Number.isNaN(Date.parse(until))) throw new Error("Ungültiger Zeitpunkt.");
+    const iso = until === null ? null : new Date(until).toISOString();
+    const update = this.db.prepare("UPDATE message SET snoozedUntil = ? WHERE id = ?");
+    this.db.transaction(() => {
+      for (const id of messageIds) update.run(iso, id);
+    })();
   }
 
   async thread(threadId: string): Promise<Message[]> {
@@ -184,7 +219,8 @@ export class SqliteMailRepository implements MailRepository {
         .prepare(`SELECT COUNT(*) AS n FROM message JOIN mailbox ON mailbox.id = message.mailboxId WHERE mailbox.role = 'inbox' AND (message.flags & ?) = 0 AND message.priorityScore >= ? AND NOT ${screenedOut}`)
         .get(MessageFlag.seen, importantThreshold) as { n: number }
     ).n;
-    const counts: UnreadCounts = { unifiedInbox: 0, unread: 0, flagged: 0, mailboxes: {}, screener, important };
+    const snoozed = (this.db.prepare(`SELECT COUNT(*) AS n FROM message JOIN mailbox ON mailbox.id = message.mailboxId WHERE mailbox.role <> 'trash' AND ${snoozedNow}`).get() as { n: number }).n;
+    const counts: UnreadCounts = { unifiedInbox: 0, unread: 0, flagged: 0, mailboxes: {}, screener, important, snoozed };
     for (const r of rows) {
       if (r.unread > 0) counts.mailboxes[r.mailboxId] = r.unread;
       if (r.role === "inbox") {

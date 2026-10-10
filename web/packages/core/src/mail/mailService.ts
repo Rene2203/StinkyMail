@@ -340,6 +340,17 @@ export class MailService implements MailRepository, AccountsApi {
     this.options.onChange?.();
   }
 
+  /** Schlummern (nur lokal): Mail verschwindet bis `until` aus dem Posteingang */
+  async snooze(messageIds: string[], until: string | null): Promise<void> {
+    await this.repository.snooze(messageIds, until);
+    this.options.onChange?.();
+  }
+
+  /** Mails, deren Schlummerzeit zwischen `since` und `until` abgelaufen ist (für „Wieder da“-Hinweise) */
+  wokenBetween(since: string, until: string): Message[] {
+    return this.repository.wokenBetween(since, until);
+  }
+
   /** Erlauben: Mails erscheinen im Posteingang. Blockieren: vorhandene Mails wandern in den Spam-Ordner (auch auf dem Server). */
   async decideSender(address: string, decision: "allow" | "block"): Promise<void> {
     await this.repository.decideSender(address, decision);
