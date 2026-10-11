@@ -42,12 +42,18 @@ jobs:
         with:
           name: StinkyMail-Windows-Installer
           path: installer
-      - name: Release anlegen
+      # Wurde das Release schon auf der GitHub-Seite angelegt (Tag dort erzeugt), nur Installer, Titel und Notizen ergänzen
+      - name: Release anlegen oder ergänzen
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          TITLE: StinkyMail ${{ steps.version.outputs.version }}
+          NOTES: ${{ steps.version.outputs.notes }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
-          gh release create "${{ steps.version.outputs.tag }}" installer/*.exe \
-            --target "${GITHUB_SHA}" \
-            --title "StinkyMail ${{ steps.version.outputs.version }}" \
-            --notes-file "${{ steps.version.outputs.notes }}" \
-            ${{ steps.version.outputs.prerelease }}
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" installer/*.exe --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes-file "$NOTES" $PRERELEASE
+          else
+            gh release create "$TAG" installer/*.exe --target "$GITHUB_SHA" --title "$TITLE" --notes-file "$NOTES" $PRERELEASE
+          fi
