@@ -457,6 +457,8 @@ test("Transparenz-Seite: gelerntes Verhalten sehen, Absender „immer wichtig“
   const options = page.getByTestId("options-dialog");
   const section = options.getByTestId("personal-section");
   await expect(section).toBeVisible();
+  // Versionsnummer aus package.json
+  await expect(options.getByTestId("app-version")).toHaveText(/^StinkyMail \d+\.\d+\.\d+(-[\w.]+)?$/);
   // Mails wurden in den Tests vorher geöffnet – das Protokoll zählt mit
   await expect(section.getByTestId("personal-events")).toContainText(/[1-9]\d*× geöffnet/);
   const sender = section.getByTestId("personal-sender").first();

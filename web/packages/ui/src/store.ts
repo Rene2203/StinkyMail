@@ -452,7 +452,7 @@ export class BrowserStore {
 
   constructor(
     repository: MailRepository,
-    options: { pageSize?: number; accounts?: AccountsApi; files?: AttachmentFiles; settings?: AppSettingsApi; ai?: AIApi; rules?: RulesApi; cleanup?: CleanupApi; webPanel?: WebPanelHost; subscriptions?: SubscriptionsApi; categories?: UserCategoriesApi; receipts?: ReceiptsApi; promises?: PromisesApi; ask?: AskApi; contacts?: ContactsApi; personal?: PersonalApi; attachments?: AttachmentsApi; meetings?: MeetingsApi; stats?: StatsApi; parcels?: ParcelsApi; travel?: TravelApi } = {},
+    options: { pageSize?: number; accounts?: AccountsApi; files?: AttachmentFiles; settings?: AppSettingsApi; ai?: AIApi; rules?: RulesApi; cleanup?: CleanupApi; webPanel?: WebPanelHost; subscriptions?: SubscriptionsApi; categories?: UserCategoriesApi; receipts?: ReceiptsApi; promises?: PromisesApi; ask?: AskApi; contacts?: ContactsApi; personal?: PersonalApi; attachments?: AttachmentsApi; meetings?: MeetingsApi; stats?: StatsApi; parcels?: ParcelsApi; travel?: TravelApi; version?: string } = {},
   ) {
     this.#repository = repository;
     this.pageSize = options.pageSize ?? 500;
@@ -475,7 +475,11 @@ export class BrowserStore {
     this.#stats = options.stats;
     this.#parcels = options.parcels;
     this.#travel = options.travel;
+    this.appVersion = options.version ?? null;
   }
+
+  /** Versionsnummer der App (null im Browser-Vorschau-Modus) */
+  readonly appVersion: string | null;
 
   // --- Reise-Zeitleiste (W12.2) ---
 

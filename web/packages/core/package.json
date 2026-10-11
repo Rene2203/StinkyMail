@@ -1,6 +1,6 @@
 {
   "name": "@stinkyma/core",
-  "version": "0.1.0",
+  "version": "0.9.0-rc.1",
   "private": true,
   "description": "Plattformneutraler Kern: Modelle, SQLite-Speicher, Repository, Mock-Daten",
   "type": "module",

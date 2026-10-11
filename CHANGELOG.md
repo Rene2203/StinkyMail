@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0-rc.1 – erster Release-Kandidat (11.10.2026)
+
+- Versionsnummer 0.9.0-rc.1, in den Optionen sichtbar. Enthält alles bis W12 (siehe unten).
+- Release-Workflow: Tag `v…` baut und testet unter Windows und legt ein GitHub-Release mit Installer an
+  (Notizen: `docs/releases/v0.9.0-rc.1.md`).
+
 ## W12 – Pakete und Reisen (Block 2)
 
 ### Neu

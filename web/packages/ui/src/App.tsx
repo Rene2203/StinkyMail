@@ -63,6 +63,8 @@ export interface AppProps {
   parcels?: ParcelsApi;
   /** Reise-Zeitleiste */
   travel?: TravelApi;
+  /** Versionsnummer der App (Anzeige in den Optionen) */
+  version?: string;
   /** Meldet Statusänderungen der KI (Download-Fortschritt usw.). */
   subscribeAIStatus?: (onStatus: (status: AIStatus) => void) => () => void;
   /** Meldet Änderungen von außen (Abgleich, Aktionen); gibt eine Abmelde-Funktion zurück. */
@@ -73,8 +75,8 @@ export interface AppProps {
 }
 
 /** Drei-Spalten-Layout: Postfächer │ Mail-Liste │ Konversation. */
-export function App({ repository, locale, accounts, files, settings, ai, rules, cleanup, webPanel, subscriptions, categories, receipts, promises, ask, contacts, personal, attachments, meetings, stats, parcels, travel, subscribeAIStatus, subscribeChanges, subscribeOpenMessage, subscribeOpenDigest }: AppProps) {
-  const store = useMemo(() => new BrowserStore(repository, { accounts, files, settings, ai, rules, cleanup, webPanel, subscriptions, categories, receipts, promises, ask, contacts, personal, attachments, meetings, stats, parcels, travel }), [repository, accounts, files, settings, ai, rules, cleanup, webPanel, subscriptions, categories, receipts, promises, ask, contacts, personal, attachments, meetings, stats, parcels, travel]);
+export function App({ repository, locale, accounts, files, settings, ai, rules, cleanup, webPanel, subscriptions, categories, receipts, promises, ask, contacts, personal, attachments, meetings, stats, parcels, travel, version, subscribeAIStatus, subscribeChanges, subscribeOpenMessage, subscribeOpenDigest }: AppProps) {
+  const store = useMemo(() => new BrowserStore(repository, { accounts, files, settings, ai, rules, cleanup, webPanel, subscriptions, categories, receipts, promises, ask, contacts, personal, attachments, meetings, stats, parcels, travel, version }), [repository, accounts, files, settings, ai, rules, cleanup, webPanel, subscriptions, categories, receipts, promises, ask, contacts, personal, attachments, meetings, stats, parcels, travel, version]);
   const value = useMemo(() => ({ store, t: translator(locale), locale }), [store, locale]);
 
   useEffect(() => {

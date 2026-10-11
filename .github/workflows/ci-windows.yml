@@ -2,6 +2,8 @@ name: CI Windows
 
 on:
   push:
+    # Nur Zweige – Tags (Releases) laufen über release-windows.yml, das diese CI aufruft
+    branches: ["**"]
     paths:
       - "web/**"
       - ".github/workflows/ci-windows.yml"
@@ -10,9 +12,11 @@ on:
       - "web/**"
       - ".github/workflows/ci-windows.yml"
   workflow_dispatch:
+  # Vom Release-Workflow aufgerufen: gleiche Tests, gleicher Installer
+  workflow_call:
 
 concurrency:
-  group: ci-windows-${{ github.ref }}
+  group: ci-windows-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 defaults:

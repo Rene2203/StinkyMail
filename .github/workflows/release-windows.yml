@@ -1,0 +1,53 @@
+name: Release Windows
+
+# Release-Kandidaten und Releases: Tag „v<Version>“ (z. B. v0.9.0-rc.1) → volle Windows-CI (Tests, E2E, Installer),
+# danach ein GitHub-Release mit dem Installer und den Notizen aus docs/releases/<Tag>.md.
+# Versionen mit Bindestrich (rc, beta) werden als Vorabversion veröffentlicht.
+# Ohne Tag per Hand startbar: dann wird das Tag aus der Version in web/apps/desktop/package.json angelegt.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    uses: ./.github/workflows/ci-windows.yml
+
+  release:
+    name: GitHub-Release anlegen
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version und Tag prüfen
+        id: version
+        run: |
+          version=$(node -p "require('./web/apps/desktop/package.json').version")
+          tag="v${version}"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "${tag}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} passt nicht zur Version ${version} in package.json" >&2
+            exit 1
+          fi
+          notes="docs/releases/${tag}.md"
+          if [ ! -f "${notes}" ]; then echo "Release-Notizen fehlen: ${notes}" >&2; exit 1; fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "notes=${notes}" >> "$GITHUB_OUTPUT"
+          case "${version}" in *-*) echo "prerelease=--prerelease" >> "$GITHUB_OUTPUT" ;; *) echo "prerelease=" >> "$GITHUB_OUTPUT" ;; esac
+      - name: Installer holen
+        uses: actions/download-artifact@v4
+        with:
+          name: StinkyMail-Windows-Installer
+          path: installer
+      - name: Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" installer/*.exe \
+            --target "${GITHUB_SHA}" \
+            --title "StinkyMail ${{ steps.version.outputs.version }}" \
+            --notes-file "${{ steps.version.outputs.notes }}" \
+            ${{ steps.version.outputs.prerelease }}

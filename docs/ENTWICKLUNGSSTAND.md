@@ -5,7 +5,7 @@ nicht erst am Ende einer Phase. Abgeschlossene Phasen stehen zusätzlich in `CHA
 
 **Zuletzt aktualisiert:** 11.10.2026
 **Aktueller Fokus:** Windows-App (`web/`), danach Server mit Browser – Roadmap: `docs/ROADMAP-WINDOWS.md`
-**Aktuelle Phase:** W5 – KI-Basis. W5.1–W5.4 gebaut, Windows-CI grün; Messlauf fertig → **Standardmodell Gemma 4 E2B**. **W6 – Assistent:** W6.1 (Zu tun: Termine/Fristen/Zahlungen), W6.2 (Phishing-Check), W6.3 (Türsteher), W6.4 (Regeln in eigenen Worten), W6.5 (Antwortvorschläge) und W6.6 (Tagesüberblick) fertig, lokal geprüft und vom Nutzer unter Windows mit echtem Gmail-Konto getestet – **W6 abgeschlossen**. Danach (Wunsch des Nutzers): Zeitraum „alle Mails“, **Aufräumen**, **Newsletter abbestellen** (Abmelde-Seite im verschiebbaren Fenster in der App) und Umbenennung in **StinkyMail** – gebaut, lokal geprüft. Als Nächstes: Feinabstimmung der Modelle
+**Aktuelle Phase:** Release-Kandidat **0.9.0-rc.1** der Windows-App (W1–W12 fertig). Danach: Rückmeldungen zum RC, Server mit Browser (S1), UI-Überarbeitung, Feinabstimmung mit echten Beispielmails.
 
 ## Überblick
 
@@ -735,4 +735,16 @@ App Intents, großes RAM-Limit für lokale Modelle), lassen sich derzeit nicht a
 - Stand Tests: 518 Unit-Tests grün (inkl. GreenMail und Laufzeit mit Testmodell), E2E 26 grün / 2 übersprungen, auch mit 1024×768.
 - Als Nächstes laut Reihenfolge: (3) Server mit Browser (S1); UI-Überarbeitung, sobald der Nutzer Ideen hat;
   Feinabstimmung mit echten Beispielmails am Schluss.
+
+### 11.10.2026 – Release-Kandidat 0.9.0-rc.1
+- Wunsch des Nutzers: Release-Kandidat. Versionsnummer **0.9.0-rc.1** (bisher 0.1.0): Windows-App ist funktional
+  weitgehend komplett (W1–W12), aber noch nicht 1.0 – offen sind Server mit Browser, UI-Überarbeitung und die
+  Feinabstimmung mit echten Mails. „rc.1“, damit weitere Kandidaten (rc.2 …) folgen können, bevor 0.9.0 steht.
+- Version in allen Paketen gesetzt und in den Optionen sichtbar („StinkyMail 0.9.0-rc.1“).
+- Neuer Workflow `release-windows.yml`: Tag `v<Version>` → volle Windows-CI (wiederverwendet) → GitHub-Release mit
+  Installer und Notizen aus `docs/releases/<Tag>.md`; Versionen mit Bindestrich als Vorabversion. Prüft, dass Tag und
+  `package.json` zusammenpassen. Die normale CI läuft nur noch für Zweige (sonst liefe sie beim Tag doppelt).
+- **Ungeprüft:** der Release-Workflow selbst (läuft erst mit dem ersten Tag), Installer mit Vorab-Versionsnummer
+  (electron-builder unterstützt das laut Quelltext; Windows-Dateiversion wird daraus 0.9.0.x), Update über eine
+  installierte 0.1.0 auf dem Rechner des Nutzers.
 

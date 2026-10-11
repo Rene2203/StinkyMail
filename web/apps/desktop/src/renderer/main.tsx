@@ -41,12 +41,14 @@ declare global {
 const bridge = window.stinkyma;
 const repository: MailRepository = bridge?.mail ?? new InMemoryMailRepository(createMockData());
 const locale = pickLocale(navigator.languages);
+declare const __APP_VERSION__: string | undefined;
+const version = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : undefined;
 
 const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     <StrictMode>
-      <App repository={repository} locale={locale} accounts={bridge?.accounts} files={bridge?.files} settings={bridge?.settings} ai={bridge?.ai} rules={bridge?.rules} cleanup={bridge?.cleanup} subscriptions={bridge?.subscriptions} categories={bridge?.categories} receipts={bridge?.receipts} promises={bridge?.promises} ask={bridge?.ask} contacts={bridge?.contacts} personal={bridge?.personal} attachments={bridge?.attachments} meetings={bridge?.meetings} stats={bridge?.stats} parcels={bridge?.parcels} travel={bridge?.travel} webPanel={bridge?.webPanel} subscribeAIStatus={bridge?.onAIStatus} subscribeChanges={bridge?.onMailChanged} subscribeOpenMessage={bridge?.onOpenMessage} subscribeOpenDigest={bridge?.onOpenDigest} />
+      <App repository={repository} locale={locale} accounts={bridge?.accounts} files={bridge?.files} settings={bridge?.settings} ai={bridge?.ai} rules={bridge?.rules} cleanup={bridge?.cleanup} subscriptions={bridge?.subscriptions} categories={bridge?.categories} receipts={bridge?.receipts} promises={bridge?.promises} ask={bridge?.ask} contacts={bridge?.contacts} personal={bridge?.personal} attachments={bridge?.attachments} meetings={bridge?.meetings} stats={bridge?.stats} parcels={bridge?.parcels} travel={bridge?.travel} version={version} webPanel={bridge?.webPanel} subscribeAIStatus={bridge?.onAIStatus} subscribeChanges={bridge?.onMailChanged} subscribeOpenMessage={bridge?.onOpenMessage} subscribeOpenDigest={bridge?.onOpenDigest} />
     </StrictMode>,
   );
 }

@@ -144,6 +144,7 @@ export function OptionsDialog({ suggestion, onClose }: { suggestion: string; onC
         </section>
 
         <footer className="dialog-footer">
+          {store.appVersion && <span className="footer-start muted small" data-testid="app-version">StinkyMail {store.appVersion}</span>}
           <button type="button" onClick={onClose}>{t("options.done")}</button>
         </footer>
       </form>
