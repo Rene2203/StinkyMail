@@ -747,4 +747,9 @@ App Intents, großes RAM-Limit für lokale Modelle), lassen sich derzeit nicht a
 - **Ungeprüft:** der Release-Workflow selbst (läuft erst mit dem ersten Tag), Installer mit Vorab-Versionsnummer
   (electron-builder unterstützt das laut Quelltext; Windows-Dateiversion wird daraus 0.9.0.x), Update über eine
   installierte 0.1.0 auf dem Rechner des Nutzers.
+- **Fehler und behoben:** Windows-CI #128 brach sofort ab – die Pakete verweisen untereinander mit fester Versionsnummer
+  (`"@stinkyma/core": "0.1.0"`), die beim Hochsetzen nicht mitgezogen war; `npm ci` fand dann `@stinkyma/core@0.1.0` nicht.
+  Verweise auf 0.9.0-rc.1 gesetzt, `package-lock.json` neu erzeugt, `npm ci` in einer frischen Kopie geprüft.
+  **Lehre:** Nach Änderungen an `package.json` immer `npm ci` in einer sauberen Kopie laufen lassen.
+- Tag setzen geht aus dieser Umgebung nicht (Push nur auf den Arbeitszweig erlaubt) – das Tag legt der Nutzer an.
 

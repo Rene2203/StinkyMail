@@ -9,7 +9,7 @@
     "./styles.css": "./src/styles.css"
   },
   "dependencies": {
-    "@stinkyma/core": "0.1.0",
+    "@stinkyma/core": "0.9.0-rc.1",
     "@tiptap/extension-text-align": "^3.31.4",
     "@tiptap/extension-text-style": "^3.31.4",
     "@tiptap/extensions": "^3.31.4",

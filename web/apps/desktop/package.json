@@ -18,8 +18,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",
-    "@stinkyma/core": "0.1.0",
-    "@stinkyma/ui": "0.1.0",
+    "@stinkyma/core": "0.9.0-rc.1",
+    "@stinkyma/ui": "0.9.0-rc.1",
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "44.5.1",
     "electron-builder": "^26.15.3",
