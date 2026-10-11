@@ -3,7 +3,7 @@
 Laufendes Protokoll des Zwischenstands. Wird nach jedem größeren Arbeitsschritt aktualisiert –
 nicht erst am Ende einer Phase. Abgeschlossene Phasen stehen zusätzlich in `CHANGELOG.md`.
 
-**Zuletzt aktualisiert:** 10.10.2026
+**Zuletzt aktualisiert:** 11.10.2026
 **Aktueller Fokus:** Windows-App (`web/`), danach Server mit Browser – Roadmap: `docs/ROADMAP-WINDOWS.md`
 **Aktuelle Phase:** W5 – KI-Basis. W5.1–W5.4 gebaut, Windows-CI grün; Messlauf fertig → **Standardmodell Gemma 4 E2B**. **W6 – Assistent:** W6.1 (Zu tun: Termine/Fristen/Zahlungen), W6.2 (Phishing-Check), W6.3 (Türsteher), W6.4 (Regeln in eigenen Worten), W6.5 (Antwortvorschläge) und W6.6 (Tagesüberblick) fertig, lokal geprüft und vom Nutzer unter Windows mit echtem Gmail-Konto getestet – **W6 abgeschlossen**. Danach (Wunsch des Nutzers): Zeitraum „alle Mails“, **Aufräumen**, **Newsletter abbestellen** (Abmelde-Seite im verschiebbaren Fenster in der App) und Umbenennung in **StinkyMail** – gebaut, lokal geprüft. Als Nächstes: Feinabstimmung der Modelle
 
@@ -714,4 +714,25 @@ App Intents, großes RAM-Limit für lokale Modelle), lassen sich derzeit nicht a
   **Ungeprüft:** wie viele Fehlalarme das mit echten gesendeten Mails gibt (Heuristik ohne KI, nicht gemessen).
 - Stand Tests: 503 Unit-Tests grün (inkl. GreenMail und Laufzeit mit Testmodell), E2E 24 grün / 2 übersprungen, auch mit 1024×768.
 - Als Nächstes laut Reihenfolge: (2) Paket-Übersicht und Reise-Zeitleiste.
+
+### 11.10.2026 – W12 Block 2: Pakete und Reisen
+- Windows-CI Lauf #126 (Block 1) grün. Nutzer: „Mach noch weiter.“
+- **W12.1 Pakete – gebaut, lokal geprüft:** Erkennung per Code (schema.org, Verfolgungs-Links, Muster mit Stichwort),
+  Status/Termin aus dem Text, Liste mit Verfolgen-Link (öffnet erst auf Klick die Seite des Paketdienstes). Testsatz mit
+  erfundenen Mails inkl. Fallen (Bestell-, Kunden-, Rechnungsnummern, Newsletter mit „DHL“) – alle richtig; Speicher-Test
+  (Aktualisierung, zugestellt → erledigt, Entfernen bleibt, nach 30 Tagen ohne Mail nicht mehr offen); E2E.
+  **Nicht umgesetzt:** Live-Status beim Paketdienst (Spezifikation: nur als Opt-in; braucht je Dienst eine Schnittstelle),
+  KI-Rückfall für ungewöhnliche Mails. **Ungeprüft:** echte Versandmails (Formate der Shops sind sehr unterschiedlich –
+  hier helfen die Beispielmails des Nutzers).
+- **W12.2 Reisen – gebaut, lokal geprüft:** schema.org zuerst (Flug, Bahn, Bus, Hotel, Mietwagen, Veranstaltung), sonst
+  Textmuster für deutsche Bestätigungen; Bestätigung + Erinnerung zusammengeführt, Stornierung per Buchungsnummer, Reisen
+  per Code gruppiert (höchstens 2 Tage Lücke), Kalendereintrag als ICS mit Erinnerung. Tests mit erfundenen Mails inkl.
+  Fallen (Flug-Werbung, Einladung mit „Anreise“, Versandmail); E2E mit Bahn + Hotel.
+  **Nicht umgesetzt:** Karte (MapKit gibt es unter Windows nicht; später evtl. Link zu einem Kartendienst), Anhänge je
+  Reise, KI-Rückfall. **Ungeprüft:** echte Buchungsmails (DB, Airlines, Booking.com u. a. – Textformate weichen ab; wo
+  sie schema.org mitschicken, sollte es klappen), Zeitzonen bei Flügen (angezeigt wird die Ortszeit aus der Mail).
+- Suchläufe beider Funktionen: beim Anzeigen höchstens 200 neue Mails, ältere im Hintergrund in Portionen zu 100.
+- Stand Tests: 518 Unit-Tests grün (inkl. GreenMail und Laufzeit mit Testmodell), E2E 26 grün / 2 übersprungen, auch mit 1024×768.
+- Als Nächstes laut Reihenfolge: (3) Server mit Browser (S1); UI-Überarbeitung, sobald der Nutzer Ideen hat;
+  Feinabstimmung mit echten Beispielmails am Schluss.
 

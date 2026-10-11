@@ -178,6 +178,20 @@ export function createMockData(now: Date = new Date()): MockDataSet {
     subject: "Unterlagen für die Steuererklärung 2025", date: ago({ days: 40 }), flags: seen, category: "personal",
     body: "Liebe Frau Beispiel,\n\nbitte senden Sie uns bis Ende des Monats Ihre Belege für Arbeitsmittel und Handwerkerleistungen.\n\nFreundliche Grüße\nSteuerbüro Klar" });
 
+  // Reise in drei Wochen (Reise-Zeitleiste, W12.2): Bahn + Hotel
+  const inDays = (days: number) => {
+    const d = new Date(now.getTime() + days * 86_400_000);
+    return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+  };
+  add({ thread: "reise-bahn", account: MockIds.iCloud, role: "inbox",
+    from: { name: "Bahn-Buchung", address: "buchung@bahnreisen.example" }, to: [me.privat],
+    subject: "Ihre Fahrkarte nach München", date: ago({ days: 6 }), flags: seen, category: "notification",
+    body: `Vielen Dank für Ihre Buchung.\n\nAuftragsnummer: 8KX4TZ\nHinfahrt am ${inDays(21)}\nHamburg Hbf ab 08:12\nMünchen Hbf an 14:01\nICE 581\n\nRückfahrt am ${inDays(23)}\nMünchen Hbf ab 16:30\nHamburg Hbf an 22:41\nICE 600` });
+  add({ thread: "reise-hotel", account: MockIds.iCloud, role: "inbox",
+    from: { name: "Hotel Isarblick", address: "reservierung@isarblick.example" }, to: [me.privat],
+    subject: "Ihre Reservierung im Hotel Isarblick", date: ago({ days: 6, hours: 2 }), flags: seen, category: "notification",
+    body: `Guten Tag Frau Beispiel,\n\nwir freuen uns auf Ihren Besuch.\nAnreise: ${inDays(21)} (Check-in ab 15:00)\nAbreise: ${inDays(23)}\nReservierungsnummer: 4410\nAdresse: Isarweg 12, München\n\nIhr Hotel Isarblick` });
+
   // Eigene Frage ohne Antwort (Nachhak-Wächter, W11.5)
   add({ thread: "kita", account: MockIds.iCloud, role: "sent", from: me.privat, to: [{ name: "Sabine Krüger", address: "leitung@kita-sonnenschein.example" }],
     subject: "Elternabend im November", date: ago({ days: 5, hours: 2 }), flags: seen, category: "personal",

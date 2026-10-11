@@ -1,5 +1,22 @@
 # Changelog
 
+## W12 – Pakete und Reisen (Block 2)
+
+### Neu
+- **Pakete** (Spezifikation 7.1): Sendungsnummern aus Versandmails – zuerst strukturierte Daten (schema.org
+  `ParcelDelivery`), dann Links zur Sendungsverfolgung (DHL, Hermes, DPD, GLS, UPS, FedEx), dann Nummern mit Stichwort
+  („Sendungsnummer: …“; auch Amazon `TBA…`, UPS `1Z…`, Post `RR…DE`). Status (angekündigt, unterwegs, heute in
+  Zustellung, abholbereit, zugestellt, Problem) und voraussichtlicher Termin (auch „morgen“, „am Montag“) per Code.
+  „Verfolgen“ öffnet die Seite des Paketdienstes – vorher verlässt die Sendungsnummer das Gerät nicht. Zugestellt →
+  erledigt; „Entfernen“ für falsch Erkanntes. Migration `v27-parcels`.
+- **Reisen** (7.1): Flug-, Bahn-, Bus-, Hotel-, Mietwagen- und Veranstaltungsbuchungen – zuerst schema.org
+  (`FlightReservation`, `TrainReservation`, `LodgingReservation` …), sonst Muster für typische deutsche Bestätigungen
+  (Hin-/Rückfahrt, Abflug/Ankunft, Anreise/Abreise, Abholung/Rückgabe). Bestätigung und Erinnerung werden
+  zusammengeführt, Stornierungen erkannt. Aufeinanderfolgende Buchungen werden zu einer **Reise** mit Zeitleiste
+  gruppiert („München, So. 1. Nov. – Di. 3. Nov., in 21 Tagen“); „In den Kalender“ öffnet einen Kalendereintrag mit
+  Erinnerung. Migration `v28-travel`.
+- Beide lesen ältere Mails beim ersten Start in kleinen Portionen im Hintergrund nach.
+
 ## W11 – Komfort & Sicherheit (Block 1)
 
 ### Neu

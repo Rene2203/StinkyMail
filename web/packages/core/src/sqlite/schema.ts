@@ -707,6 +707,35 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    // W12.2 Reise-Zeitleiste: eine Zeile je Buchung (Schlüssel aus Art, Buchungsnummer, Beginn, Titel); Reisen werden
+    // beim Anzeigen per Code gruppiert. messageId ohne Fremdschlüssel; removed = „falsch erkannt“.
+    name: "v28-travel",
+    sql: `
+      CREATE TABLE travelBooking (
+        id TEXT PRIMARY KEY NOT NULL,
+        kind TEXT NOT NULL,
+        title TEXT NOT NULL,
+        start TEXT NOT NULL,
+        "end" TEXT,
+        origin TEXT,
+        destination TEXT,
+        place TEXT,
+        reference TEXT,
+        source TEXT NOT NULL,
+        canceled INTEGER NOT NULL DEFAULT 0,
+        removed INTEGER NOT NULL DEFAULT 0,
+        messageId TEXT,
+        mailSubject TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+      CREATE INDEX travelBooking_on_start ON travelBooking(start);
+      CREATE TABLE travelScan (
+        messageId TEXT PRIMARY KEY NOT NULL REFERENCES message(id) ON DELETE CASCADE,
+        scannedAt TEXT NOT NULL
+      );
+    `,
+  },
 ];
 
 /** Bringt die Datenbank auf den neuesten Stand. Jede Migration läuft in einer eigenen Transaktion. */

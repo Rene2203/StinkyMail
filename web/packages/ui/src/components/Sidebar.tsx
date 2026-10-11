@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3, Broom, Clock, Package, Handshake, LogIn, MessageCircleQuestion, Plus, ReceiptText, RefreshCw, Repeat, Send, Settings, Sun, X } from "lucide-react";
+import { AlertTriangle, BarChart3, Broom, Clock, Package, Plane, Handshake, LogIn, MessageCircleQuestion, Plus, ReceiptText, RefreshCw, Repeat, Send, Settings, Sun, X } from "lucide-react";
 import { isDemoAccount, scopeKey } from "@stinkyma/core";
 import { useState } from "react";
 import { useBrowserState, useUi } from "../context.js";
@@ -183,6 +183,21 @@ export function Sidebar() {
                   <Package className="sidebar-icon" size={18} strokeWidth={1.75} aria-hidden="true" />
                   <span className="sidebar-label">{t("parcels.sidebar")}</span>
                   {(state.parcels?.view?.open.length ?? 0) > 0 && <span className="badge">{state.parcels?.view?.open.length}</span>}
+                </button>
+              </li>
+            )}
+            {section.id === "smart" && store.canTravel && (
+              <li>
+                <button
+                  type="button"
+                  className={`sidebar-item${state.panel === "travel" ? " selected" : ""}`}
+                  aria-current={state.panel === "travel" ? "page" : undefined}
+                  data-testid="sidebar-travel"
+                  onClick={() => void store.openTravel()}
+                >
+                  <Plane className="sidebar-icon" size={18} strokeWidth={1.75} aria-hidden="true" />
+                  <span className="sidebar-label">{t("travel.sidebar")}</span>
+                  {(state.travel?.view?.upcoming.length ?? 0) > 0 && <span className="badge">{state.travel?.view?.upcoming.length}</span>}
                 </button>
               </li>
             )}

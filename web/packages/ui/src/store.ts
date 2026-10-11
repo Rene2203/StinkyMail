@@ -25,6 +25,8 @@ import {
   type StatsApi,
   type ParcelsApi,
   type ParcelsView,
+  type TravelApi,
+  type TravelView,
   type StatsPeriod,
   type DietSuggestion,
   type MeetingView,
@@ -185,7 +187,7 @@ export interface BrowserState {
   /** Offene fremde Seite im Fenster innerhalb der App; null = zu */
   webPanel: WebPanelState | null;
   /** Was die beiden rechten Spalten zeigen: Mails oder „Abos & Verträge“ */
-  panel: "mail" | "subscriptions" | "receipts" | "promises" | "ask" | "stats" | "parcels";
+  panel: "mail" | "subscriptions" | "receipts" | "promises" | "ask" | "stats" | "parcels" | "travel";
   /** Verträge & Abos (W7.1) */
   subscriptions: { view: SubscriptionsView | null; selectedId: string | null; busy: boolean; error: string | null } | null;
   /** Eigene Kategorien (Seitenleiste); null = nicht verfügbar oder noch nicht geladen */
@@ -208,6 +210,8 @@ export interface BrowserState {
   ask: { question: string; sender: string | null; busy: boolean; result: AskResult | null; error: string | null; status: AskIndexStatus | null } | null;
   /** Absender-Steckbrief (W8.2) neben der Mail; null = zu */
   contact: { address: string; profile: ContactProfile | null; busy: boolean; error: string | null } | null;
+  /** Reise-Zeitleiste (W12.2) */
+  travel: { view: TravelView | null; busy: boolean; error: string | null } | null;
   /** Paket-Übersicht (W12.1) */
   parcels: { view: ParcelsView | null; busy: boolean; error: string | null } | null;
   /** Link-Prüfer (W11.1): Rückfrage vor dem Öffnen eines auffälligen Links; null = keine */
@@ -363,6 +367,7 @@ export const initialState: BrowserState = {
   personal: null,
   stats: null,
   parcels: null,
+  travel: null,
   linkCheck: null,
   insight: null,
   meeting: null,
@@ -443,10 +448,11 @@ export class BrowserStore {
   readonly #meetings: MeetingsApi | undefined;
   readonly #stats: StatsApi | undefined;
   readonly #parcels: ParcelsApi | undefined;
+  readonly #travel: TravelApi | undefined;
 
   constructor(
     repository: MailRepository,
-    options: { pageSize?: number; accounts?: AccountsApi; files?: AttachmentFiles; settings?: AppSettingsApi; ai?: AIApi; rules?: RulesApi; cleanup?: CleanupApi; webPanel?: WebPanelHost; subscriptions?: SubscriptionsApi; categories?: UserCategoriesApi; receipts?: ReceiptsApi; promises?: PromisesApi; ask?: AskApi; contacts?: ContactsApi; personal?: PersonalApi; attachments?: AttachmentsApi; meetings?: MeetingsApi; stats?: StatsApi; parcels?: ParcelsApi } = {},
+    options: { pageSize?: number; accounts?: AccountsApi; files?: AttachmentFiles; settings?: AppSettingsApi; ai?: AIApi; rules?: RulesApi; cleanup?: CleanupApi; webPanel?: WebPanelHost; subscriptions?: SubscriptionsApi; categories?: UserCategoriesApi; receipts?: ReceiptsApi; promises?: PromisesApi; ask?: AskApi; contacts?: ContactsApi; personal?: PersonalApi; attachments?: AttachmentsApi; meetings?: MeetingsApi; stats?: StatsApi; parcels?: ParcelsApi; travel?: TravelApi } = {},
   ) {
     this.#repository = repository;
     this.pageSize = options.pageSize ?? 500;
@@ -468,6 +474,60 @@ export class BrowserStore {
     this.#meetings = options.meetings;
     this.#stats = options.stats;
     this.#parcels = options.parcels;
+    this.#travel = options.travel;
+  }
+
+  // --- Reise-Zeitleiste (W12.2) ---
+
+  get canTravel(): boolean {
+    return Boolean(this.#travel);
+  }
+
+  #patchTravel(patch: Partial<NonNullable<BrowserState["travel"]>>): void {
+    const current = this.#state.travel ?? { view: null, busy: false, error: null };
+    this.#set({ travel: { ...current, ...patch } });
+  }
+
+  async openTravel(): Promise<void> {
+    if (!this.#travel) return;
+    this.#set({ panel: "travel" });
+    this.#patchTravel({ busy: true, error: null });
+    await this.loadTravel();
+  }
+
+  closeTravel(): void {
+    this.#set({ panel: "mail" });
+  }
+
+  async loadTravel(): Promise<void> {
+    const api = this.#travel;
+    if (!api) return;
+    try {
+      this.#patchTravel({ view: await api.list(), busy: false });
+    } catch (e) {
+      this.#patchTravel({ busy: false, error: messageOf(e) });
+    }
+  }
+
+  async removeBooking(id: string): Promise<void> {
+    const api = this.#travel;
+    if (!api) return;
+    await api.remove(id).catch((e: unknown) => this.#patchTravel({ error: messageOf(e) }));
+    await this.loadTravel();
+  }
+
+  async bookingToCalendar(id: string): Promise<void> {
+    const api = this.#travel;
+    if (!api) return;
+    await api.addToCalendar(id).then(
+      () => this.#patchTravel({ error: null }),
+      (e: unknown) => this.#patchTravel({ error: messageOf(e) }),
+    );
+  }
+
+  async openBookingMail(messageId: string): Promise<void> {
+    this.#set({ panel: "mail" });
+    await this.openMessage(messageId);
   }
 
   // --- Paket-Übersicht (W12.1) ---
@@ -2057,6 +2117,7 @@ export class BrowserStore {
       this.#loadOAuthProviders(),
       this.loadUserCategories(),
       this.loadParcels(),
+      this.loadTravel(),
     ]);
   }
 
@@ -2075,6 +2136,7 @@ export class BrowserStore {
       this.#state.panel === "ask" ? this.#loadAskStatus() : Promise.resolve(),
       this.#state.panel === "stats" ? this.#loadStats() : Promise.resolve(),
       this.loadParcels(),
+      this.loadTravel(),
       this.loadUserCategories(),
     ]);
     const selected = this.#state.selectedMessageId;

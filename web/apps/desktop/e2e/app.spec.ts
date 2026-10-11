@@ -581,6 +581,29 @@ test("Pakete: Sendungen aus Mails mit Dienst und Nummer, erledigt und entfernt",
   await page.getByTestId("sidebar-unifiedInbox").click();
 });
 
+test("Reisen: Bahn und Hotel als eine Reise nach München mit Zeitleiste; falsch Erkanntes entfernen", async () => {
+  const item = page.getByTestId("sidebar-travel");
+  await expect(item.locator(".badge")).toHaveText("1");
+  await item.click();
+  const panel = page.getByTestId("travel");
+  const trip = panel.getByTestId("trip-card");
+  await expect(trip).toHaveCount(1);
+  await expect(trip.locator("h3")).toHaveText("München");
+  await expect(trip).toContainText("in 21 Tagen");
+  const bookings = trip.getByTestId("booking");
+  await expect(bookings).toHaveCount(3);
+  await expect(bookings.nth(0)).toContainText("ICE 581");
+  await expect(bookings.nth(0)).toContainText("Hamburg Hbf → München Hbf");
+  await expect(bookings.nth(1)).toContainText("Hotel Isarblick");
+  await expect(bookings.nth(1)).toContainText("Isarweg 12, München");
+  await expect(bookings.nth(2)).toContainText("ICE 600");
+  await shot("43-Reisen");
+  await bookings.nth(2).getByTestId("booking-remove").click();
+  await expect(bookings).toHaveCount(2);
+  await panel.getByRole("button", { name: "Zurück zu den Mails" }).click();
+  await page.getByTestId("sidebar-unifiedInbox").click();
+});
+
 test("Änderungen bleiben nach Neustart erhalten (SQLite-Datei)", async () => {
   await page.getByRole("searchbox").fill("");
   await page.getByTestId("sidebar-unifiedInbox").click();

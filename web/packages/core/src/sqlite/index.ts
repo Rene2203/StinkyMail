@@ -20,3 +20,4 @@ export * from "./attachmentStore.js";
 export * from "./meetingStore.js";
 export * from "./statsStore.js";
 export * from "./parcelStore.js";
+export * from "./travelStore.js";

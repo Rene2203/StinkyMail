@@ -21,6 +21,11 @@ import {
   meetingsApiMethods,
   statsApiMethods,
   parcelsApiMethods,
+  travelApiMethods,
+  bookingCalendarEvent,
+  toICalendar,
+  calendarFileName,
+  type TravelApi,
   type ParcelsApi,
   type StatsApi,
   oauthProviders,
@@ -46,7 +51,7 @@ import {
 import { CleanupService, MailService, RuleService, extractLockedPdfText, type OAuthBroker } from "@stinkyma/core/mail";
 import { AIService, ModelStore, RuntimeStore, SubscriptionService, UserCategoryService, ReceiptService, PromiseService, AskService, LlamaEmbedder, AttachmentService, MeetingService } from "@stinkyma/core/llm";
 import { EncryptedFileSecretStore, signInWithLoopback } from "@stinkyma/core/node";
-import { ActionStore, AIResultStore, CleanupStore, DigestStore, SubscriptionStore, UserCategoryStore, ReceiptStore, PromiseStore, EmbeddingStore, ContactStore, PriorityStore, PersonalStore, AttachmentStore, MeetingStore, StatsStore, ParcelStore, MailWriter, openDatabase, RuleStore, seedIfEmpty, SqliteMailRepository } from "@stinkyma/core/sqlite";
+import { ActionStore, AIResultStore, CleanupStore, DigestStore, SubscriptionStore, UserCategoryStore, ReceiptStore, PromiseStore, EmbeddingStore, ContactStore, PriorityStore, PersonalStore, AttachmentStore, MeetingStore, StatsStore, ParcelStore, TravelStore, MailWriter, openDatabase, RuleStore, seedIfEmpty, SqliteMailRepository } from "@stinkyma/core/sqlite";
 import { buildMenu } from "./menu";
 import { trayIconDataUrl, trayIconUnreadDataUrl, windowIconDataUrl } from "./icons";
 import { SettingsFile } from "./settings";
@@ -86,6 +91,7 @@ let attachments: AttachmentService | null = null;
 let meetings: MeetingService | null = null;
 let stats: StatsApi | null = null;
 let parcels: ParcelsApi | null = null;
+let travel: TravelApi | null = null;
 let priorityTimer: NodeJS.Timeout | null = null;
 let aiWasReady = false;
 let syncTimer: NodeJS.Timeout | null = null;
@@ -353,12 +359,41 @@ function setUpServices(): void {
   const parcelStore = new ParcelStore(db);
   parcels = {
     list: async () => {
-      parcelStore.scan();
+      parcelStore.scan(new Date(), 200);
       return parcelStore.list();
     },
     setDone: async (trackingNumber, done) => parcelStore.setDone(String(trackingNumber), Boolean(done)),
     remove: async (trackingNumber) => parcelStore.remove(String(trackingNumber)),
   };
+
+  // Reise-Zeitleiste (W12.2): Buchungen per Code aus Mails; Kalender nur als Datei, die der Nutzer selbst übernimmt
+  const travelStore = new TravelStore(db);
+  travel = {
+    list: async () => {
+      travelStore.scan(new Date(), 200);
+      return travelStore.list();
+    },
+    remove: async (id) => travelStore.remove(String(id)),
+    addToCalendar: async (id) => {
+      const booking = travelStore.booking(String(id));
+      if (!booking) throw new Error("Buchung nicht gefunden.");
+      const event = bookingCalendarEvent(booking);
+      const dir = join(app.getPath("temp"), "StinkyMail-Kalender");
+      mkdirSync(dir, { recursive: true });
+      const path = join(dir, safeFilename(calendarFileName(event.title, event.date)));
+      writeFileSync(path, toICalendar(event), "utf8");
+      const error = await shell.openPath(path);
+      if (error) throw new Error(`Der Kalender konnte nicht geöffnet werden: ${error}`);
+    },
+  };
+
+  // Ältere Mails in kleinen Portionen nachholen, damit der Hauptprozess nie lange blockiert (erster Start, großes Postfach)
+  const catchUp = () => {
+    const read = parcelStore.scan(new Date(), 100) + travelStore.scan(new Date(), 100);
+    if (read > 0) setTimeout(catchUp, 100);
+    else notifyRenderer();
+  };
+  setTimeout(catchUp, 5_000);
 
   // Terminfinder (W9.4): Kalender-Abo (ICS-Link, Adresse mit DPAPI verschlüsselt), freie Zeiten per Code; sendet nie
   meetings = new MeetingService({
@@ -685,6 +720,7 @@ function registerIpc(): void {
     ["meetings", new Set<string>(meetingsApiMethods), () => meetings],
     ["stats", new Set<string>(statsApiMethods), () => stats],
     ["parcels", new Set<string>(parcelsApiMethods), () => parcels],
+    ["travel", new Set<string>(travelApiMethods), () => travel],
   ];
   for (const [channel, allowed, target] of channels) {
     ipcMain.handle(channel, async (event, method: unknown, args: unknown) => {
