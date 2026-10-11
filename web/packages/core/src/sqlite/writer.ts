@@ -270,6 +270,7 @@ export class MailWriter {
       const subscriptionIds = (this.db.prepare("SELECT id FROM subscription WHERE sourceMessageId = ?").all(id) as { id: string }[]).map((r) => r.id);
       const receiptScan = this.db.prepare("SELECT * FROM receiptScan WHERE messageId = ?").get(id) as Row | undefined;
       const promiseScan = this.db.prepare("SELECT * FROM promiseScan WHERE messageId = ?").get(id) as Row | undefined;
+      const parcelScan = this.db.prepare("SELECT * FROM parcelScan WHERE messageId = ?").get(id) as Row | undefined;
       const embeddings = this.db.prepare("SELECT * FROM embedding WHERE messageId = ?").all(id) as Row[];
       const embeddingScan = this.db.prepare("SELECT * FROM embeddingScan WHERE messageId = ?").get(id) as Row | undefined;
       const eventIds = (this.db.prepare("SELECT id FROM behaviorEvent WHERE messageId = ?").all(id) as { id: number }[]).map((r) => r.id);
@@ -305,6 +306,8 @@ export class MailWriter {
       if (receiptScan) reinsert("receiptScan", [receiptScan], (r) => ({ ...r, messageId: target.newId }));
       this.db.prepare("UPDATE receipt SET messageId = ? WHERE messageId = ?").run(target.newId, id);
       if (promiseScan) reinsert("promiseScan", [promiseScan], (r) => ({ ...r, messageId: target.newId }));
+      if (parcelScan) reinsert("parcelScan", [parcelScan], (r) => ({ ...r, messageId: target.newId }));
+      this.db.prepare("UPDATE parcel SET messageId = ? WHERE messageId = ?").run(target.newId, id);
       reinsert("embedding", embeddings, (r) => ({ ...r, messageId: target.newId }));
       if (embeddingScan) reinsert("embeddingScan", [embeddingScan], (r) => ({ ...r, messageId: target.newId }));
       this.db.prepare("UPDATE promise SET messageId = ? WHERE messageId = ?").run(target.newId, id);

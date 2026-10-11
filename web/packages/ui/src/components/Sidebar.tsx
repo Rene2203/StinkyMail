@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3, Broom, Clock, Handshake, LogIn, MessageCircleQuestion, Plus, ReceiptText, RefreshCw, Repeat, Send, Settings, Sun, X } from "lucide-react";
+import { AlertTriangle, BarChart3, Broom, Clock, Package, Handshake, LogIn, MessageCircleQuestion, Plus, ReceiptText, RefreshCw, Repeat, Send, Settings, Sun, X } from "lucide-react";
 import { isDemoAccount, scopeKey } from "@stinkyma/core";
 import { useState } from "react";
 import { useBrowserState, useUi } from "../context.js";
@@ -168,6 +168,21 @@ export function Sidebar() {
                 >
                   <ReceiptText className="sidebar-icon" size={18} strokeWidth={1.75} aria-hidden="true" />
                   <span className="sidebar-label">{t("rcpt.sidebar")}</span>
+                </button>
+              </li>
+            )}
+            {section.id === "smart" && store.canParcels && (
+              <li>
+                <button
+                  type="button"
+                  className={`sidebar-item${state.panel === "parcels" ? " selected" : ""}`}
+                  aria-current={state.panel === "parcels" ? "page" : undefined}
+                  data-testid="sidebar-parcels"
+                  onClick={() => void store.openParcels()}
+                >
+                  <Package className="sidebar-icon" size={18} strokeWidth={1.75} aria-hidden="true" />
+                  <span className="sidebar-label">{t("parcels.sidebar")}</span>
+                  {(state.parcels?.view?.open.length ?? 0) > 0 && <span className="badge">{state.parcels?.view?.open.length}</span>}
                 </button>
               </li>
             )}

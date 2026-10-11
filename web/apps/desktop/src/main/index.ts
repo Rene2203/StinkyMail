@@ -20,6 +20,8 @@ import {
   attachmentsApiMethods,
   meetingsApiMethods,
   statsApiMethods,
+  parcelsApiMethods,
+  type ParcelsApi,
   type StatsApi,
   oauthProviders,
   refreshTokens,
@@ -44,7 +46,7 @@ import {
 import { CleanupService, MailService, RuleService, extractLockedPdfText, type OAuthBroker } from "@stinkyma/core/mail";
 import { AIService, ModelStore, RuntimeStore, SubscriptionService, UserCategoryService, ReceiptService, PromiseService, AskService, LlamaEmbedder, AttachmentService, MeetingService } from "@stinkyma/core/llm";
 import { EncryptedFileSecretStore, signInWithLoopback } from "@stinkyma/core/node";
-import { ActionStore, AIResultStore, CleanupStore, DigestStore, SubscriptionStore, UserCategoryStore, ReceiptStore, PromiseStore, EmbeddingStore, ContactStore, PriorityStore, PersonalStore, AttachmentStore, MeetingStore, StatsStore, MailWriter, openDatabase, RuleStore, seedIfEmpty, SqliteMailRepository } from "@stinkyma/core/sqlite";
+import { ActionStore, AIResultStore, CleanupStore, DigestStore, SubscriptionStore, UserCategoryStore, ReceiptStore, PromiseStore, EmbeddingStore, ContactStore, PriorityStore, PersonalStore, AttachmentStore, MeetingStore, StatsStore, ParcelStore, MailWriter, openDatabase, RuleStore, seedIfEmpty, SqliteMailRepository } from "@stinkyma/core/sqlite";
 import { buildMenu } from "./menu";
 import { trayIconDataUrl, trayIconUnreadDataUrl, windowIconDataUrl } from "./icons";
 import { SettingsFile } from "./settings";
@@ -83,6 +85,7 @@ let personal: PersonalStore | null = null;
 let attachments: AttachmentService | null = null;
 let meetings: MeetingService | null = null;
 let stats: StatsApi | null = null;
+let parcels: ParcelsApi | null = null;
 let priorityTimer: NodeJS.Timeout | null = null;
 let aiWasReady = false;
 let syncTimer: NodeJS.Timeout | null = null;
@@ -344,6 +347,17 @@ function setUpServices(): void {
     overview: async (period) => statsStore.overview(period === 30 || period === 90 || period === 365 ? period : 30),
     dismiss: async (key) => statsStore.dismiss(String(key)),
     resetDismissed: async () => statsStore.resetDismissed(),
+  };
+
+  // Paket-Übersicht (W12.1): Sendungsnummern per Code aus den Mails – nichts geht an Paketdienste, bis man „Verfolgen“ klickt
+  const parcelStore = new ParcelStore(db);
+  parcels = {
+    list: async () => {
+      parcelStore.scan();
+      return parcelStore.list();
+    },
+    setDone: async (trackingNumber, done) => parcelStore.setDone(String(trackingNumber), Boolean(done)),
+    remove: async (trackingNumber) => parcelStore.remove(String(trackingNumber)),
   };
 
   // Terminfinder (W9.4): Kalender-Abo (ICS-Link, Adresse mit DPAPI verschlüsselt), freie Zeiten per Code; sendet nie
@@ -670,6 +684,7 @@ function registerIpc(): void {
     ["attachments", new Set<string>(attachmentsApiMethods), () => attachments],
     ["meetings", new Set<string>(meetingsApiMethods), () => meetings],
     ["stats", new Set<string>(statsApiMethods), () => stats],
+    ["parcels", new Set<string>(parcelsApiMethods), () => parcels],
   ];
   for (const [channel, allowed, target] of channels) {
     ipcMain.handle(channel, async (event, method: unknown, args: unknown) => {

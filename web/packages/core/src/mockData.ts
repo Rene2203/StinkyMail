@@ -162,7 +162,11 @@ export function createMockData(now: Date = new Date()): MockDataSet {
   add({ thread: "paket", account: MockIds.iCloud, role: "inbox",
     from: { name: "Paketblitz", address: "info@paketblitz.example" }, to: [me.privat],
     subject: "Deine Sendung ist unterwegs", date: ago({ days: 1, hours: 8 }), flags: seen, category: "notification",
-    body: "Deine Sendung PB 4711 0815 42 ist unterwegs und wird voraussichtlich morgen zwischen 10 und 14 Uhr zugestellt." });
+    body: "Deine Sendung (Sendungsnummer PB 4711 0815 42) ist unterwegs und wird voraussichtlich morgen zwischen 10 und 14 Uhr zugestellt." });
+  add({ thread: "gartenland", account: MockIds.iCloud, role: "inbox",
+    from: { name: "Gartenland Versand", address: "versand@gartenland.example" }, to: [me.privat],
+    subject: "Ihre Bestellung wurde versandt", date: ago({ days: 2, hours: 5 }), flags: seen, category: "notification",
+    body: "Guten Tag,\n\nIhre Bestellung 4471-B (2 Pflanzkübel) wurde an DHL übergeben.\nSendungsnummer: 0034 0434 1234 5678 9012\nVoraussichtliche Zustellung am Montag.\n\nIhr Gartenland-Team" });
 
   add({ thread: "phishing", account: MockIds.iCloud, role: "inbox",
     from: { name: "Sicherheitsteam", address: "service@konto-sicherung.example" }, to: [me.privat],

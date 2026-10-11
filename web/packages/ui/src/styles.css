@@ -4643,3 +4643,76 @@ dialog.webpanel::backdrop {
 .follow-up-bar > svg {
   color: var(--orange);
 }
+
+/* Paket-Übersicht (W12.1) */
+
+.parcel-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 260px;
+}
+
+.parcel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.parcel-head > svg {
+  color: var(--accent);
+}
+
+.parcel-card.done {
+  opacity: 0.75;
+}
+
+.parcel-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--fg-muted);
+}
+
+.parcel-status.status-outForDelivery,
+.parcel-status.status-pickup {
+  background: color-mix(in srgb, var(--orange) 18%, transparent);
+  color: var(--orange);
+}
+
+.parcel-status.status-delivered {
+  background: color-mix(in srgb, var(--green, #2e9d52) 18%, transparent);
+  color: var(--green, #2e9d52);
+}
+
+.parcel-status.status-problem {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+}
+
+.parcel-card.status-outForDelivery,
+.parcel-card.status-pickup {
+  border-left-color: var(--orange);
+}
+
+.parcel-card.status-problem {
+  border-left-color: var(--danger);
+}
+
+.parcel-number {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+}
+
+.parcel-copy {
+  vertical-align: middle;
+  padding: 2px !important;
+}
+
+.parcels-privacy {
+  margin-top: 14px;
+}

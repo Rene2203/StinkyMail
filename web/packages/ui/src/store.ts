@@ -23,6 +23,8 @@ import {
   checkLink,
   parseMailto,
   type StatsApi,
+  type ParcelsApi,
+  type ParcelsView,
   type StatsPeriod,
   type DietSuggestion,
   type MeetingView,
@@ -183,7 +185,7 @@ export interface BrowserState {
   /** Offene fremde Seite im Fenster innerhalb der App; null = zu */
   webPanel: WebPanelState | null;
   /** Was die beiden rechten Spalten zeigen: Mails oder „Abos & Verträge“ */
-  panel: "mail" | "subscriptions" | "receipts" | "promises" | "ask" | "stats";
+  panel: "mail" | "subscriptions" | "receipts" | "promises" | "ask" | "stats" | "parcels";
   /** Verträge & Abos (W7.1) */
   subscriptions: { view: SubscriptionsView | null; selectedId: string | null; busy: boolean; error: string | null } | null;
   /** Eigene Kategorien (Seitenleiste); null = nicht verfügbar oder noch nicht geladen */
@@ -206,6 +208,8 @@ export interface BrowserState {
   ask: { question: string; sender: string | null; busy: boolean; result: AskResult | null; error: string | null; status: AskIndexStatus | null } | null;
   /** Absender-Steckbrief (W8.2) neben der Mail; null = zu */
   contact: { address: string; profile: ContactProfile | null; busy: boolean; error: string | null } | null;
+  /** Paket-Übersicht (W12.1) */
+  parcels: { view: ParcelsView | null; busy: boolean; error: string | null } | null;
   /** Link-Prüfer (W11.1): Rückfrage vor dem Öffnen eines auffälligen Links; null = keine */
   linkCheck: { check: LinkCheck; text: string } | null;
   /** Postfach-Statistik & Mail-Diät (W10.1); `note`: Rückmeldung nach einer Diät-Aktion */
@@ -358,6 +362,7 @@ export const initialState: BrowserState = {
   contact: null,
   personal: null,
   stats: null,
+  parcels: null,
   linkCheck: null,
   insight: null,
   meeting: null,
@@ -437,10 +442,11 @@ export class BrowserStore {
   readonly #attachments: AttachmentsApi | undefined;
   readonly #meetings: MeetingsApi | undefined;
   readonly #stats: StatsApi | undefined;
+  readonly #parcels: ParcelsApi | undefined;
 
   constructor(
     repository: MailRepository,
-    options: { pageSize?: number; accounts?: AccountsApi; files?: AttachmentFiles; settings?: AppSettingsApi; ai?: AIApi; rules?: RulesApi; cleanup?: CleanupApi; webPanel?: WebPanelHost; subscriptions?: SubscriptionsApi; categories?: UserCategoriesApi; receipts?: ReceiptsApi; promises?: PromisesApi; ask?: AskApi; contacts?: ContactsApi; personal?: PersonalApi; attachments?: AttachmentsApi; meetings?: MeetingsApi; stats?: StatsApi } = {},
+    options: { pageSize?: number; accounts?: AccountsApi; files?: AttachmentFiles; settings?: AppSettingsApi; ai?: AIApi; rules?: RulesApi; cleanup?: CleanupApi; webPanel?: WebPanelHost; subscriptions?: SubscriptionsApi; categories?: UserCategoriesApi; receipts?: ReceiptsApi; promises?: PromisesApi; ask?: AskApi; contacts?: ContactsApi; personal?: PersonalApi; attachments?: AttachmentsApi; meetings?: MeetingsApi; stats?: StatsApi; parcels?: ParcelsApi } = {},
   ) {
     this.#repository = repository;
     this.pageSize = options.pageSize ?? 500;
@@ -461,6 +467,59 @@ export class BrowserStore {
     this.#attachments = options.attachments;
     this.#meetings = options.meetings;
     this.#stats = options.stats;
+    this.#parcels = options.parcels;
+  }
+
+  // --- Paket-Übersicht (W12.1) ---
+
+  get canParcels(): boolean {
+    return Boolean(this.#parcels);
+  }
+
+  #patchParcels(patch: Partial<NonNullable<BrowserState["parcels"]>>): void {
+    const current = this.#state.parcels ?? { view: null, busy: false, error: null };
+    this.#set({ parcels: { ...current, ...patch } });
+  }
+
+  async openParcels(): Promise<void> {
+    if (!this.#parcels) return;
+    this.#set({ panel: "parcels" });
+    this.#patchParcels({ busy: true, error: null });
+    await this.loadParcels();
+  }
+
+  closeParcels(): void {
+    this.#set({ panel: "mail" });
+  }
+
+  /** Liste laden (sucht vorher neue Versandmails durch – schnell, ohne KI) */
+  async loadParcels(): Promise<void> {
+    const api = this.#parcels;
+    if (!api) return;
+    try {
+      this.#patchParcels({ view: await api.list(), busy: false });
+    } catch (e) {
+      this.#patchParcels({ busy: false, error: messageOf(e) });
+    }
+  }
+
+  async setParcelDone(trackingNumber: string, done: boolean): Promise<void> {
+    const api = this.#parcels;
+    if (!api) return;
+    await api.setDone(trackingNumber, done).catch((e: unknown) => this.#patchParcels({ error: messageOf(e) }));
+    await this.loadParcels();
+  }
+
+  async removeParcel(trackingNumber: string): Promise<void> {
+    const api = this.#parcels;
+    if (!api) return;
+    await api.remove(trackingNumber).catch((e: unknown) => this.#patchParcels({ error: messageOf(e) }));
+    await this.loadParcels();
+  }
+
+  async openParcelMail(messageId: string): Promise<void> {
+    this.#set({ panel: "mail" });
+    await this.openMessage(messageId);
   }
 
   // --- Link-Prüfer (W11.1) ---
@@ -1997,6 +2056,7 @@ export class BrowserStore {
       this.#loadAI(),
       this.#loadOAuthProviders(),
       this.loadUserCategories(),
+      this.loadParcels(),
     ]);
   }
 
@@ -2014,6 +2074,7 @@ export class BrowserStore {
       this.#state.panel === "promises" ? this.#loadPromises() : Promise.resolve(),
       this.#state.panel === "ask" ? this.#loadAskStatus() : Promise.resolve(),
       this.#state.panel === "stats" ? this.#loadStats() : Promise.resolve(),
+      this.loadParcels(),
       this.loadUserCategories(),
     ]);
     const selected = this.#state.selectedMessageId;

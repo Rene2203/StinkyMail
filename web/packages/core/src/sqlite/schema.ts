@@ -681,6 +681,32 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    // W12.1 Paket-Übersicht: eine Zeile je Sendungsnummer (per Code aus Versandmails); messageId ohne Fremdschlüssel,
+    // damit die Sendung die Mail überlebt. removed = „falsch erkannt“, kommt beim nächsten Suchlauf nicht wieder.
+    name: "v27-parcels",
+    sql: `
+      CREATE TABLE parcel (
+        trackingNumber TEXT PRIMARY KEY NOT NULL,
+        carrier TEXT NOT NULL,
+        status TEXT NOT NULL,
+        expected TEXT,
+        shop TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        firstSeen TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        messageId TEXT,
+        trackingUrl TEXT,
+        done INTEGER NOT NULL DEFAULT 0,
+        doneAt TEXT,
+        removed INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE parcelScan (
+        messageId TEXT PRIMARY KEY NOT NULL REFERENCES message(id) ON DELETE CASCADE,
+        scannedAt TEXT NOT NULL
+      );
+    `,
+  },
 ];
 
 /** Bringt die Datenbank auf den neuesten Stand. Jede Migration läuft in einer eigenen Transaktion. */

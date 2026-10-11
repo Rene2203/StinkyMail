@@ -555,6 +555,32 @@ test("Nachhak-Wächter: eigene Frage ohne Antwort, „Nachhaken“ öffnet vorbe
   await expect(page.getByTestId("sidebar-awaitingReply")).toHaveCount(0);
 });
 
+test("Pakete: Sendungen aus Mails mit Dienst und Nummer, erledigt und entfernt", async () => {
+  const item = page.getByTestId("sidebar-parcels");
+  await expect(item.locator(".badge")).toHaveText("2");
+  await item.click();
+  const panel = page.getByTestId("parcels");
+  const cards = panel.getByTestId("parcel-card");
+  await expect(cards).toHaveCount(2);
+  const garden = cards.filter({ hasText: "Gartenland Versand" });
+  await expect(garden).toContainText("DHL");
+  await expect(garden).toContainText("00340434123456789012");
+  await expect(garden.getByTestId("parcel-track")).toBeVisible();
+  const blitz = cards.filter({ hasText: "Paketblitz" });
+  await expect(blitz).toContainText("PB4711081542");
+  await expect(blitz.getByTestId("parcel-status")).toHaveText("Unterwegs");
+  await expect(blitz).toContainText("Voraussichtlich");
+  await shot("42-Pakete");
+  await garden.getByTestId("parcel-done").click();
+  await expect(panel.getByText("Zugestellt oder erledigt")).toBeVisible();
+  await expect(item.locator(".badge")).toHaveText("1");
+  await blitz.getByTestId("parcel-remove").click();
+  await expect(cards).toHaveCount(1);
+  await expect(panel.getByTestId("parcels-empty")).toBeVisible();
+  await panel.getByRole("button", { name: "Zurück zu den Mails" }).click();
+  await page.getByTestId("sidebar-unifiedInbox").click();
+});
+
 test("Änderungen bleiben nach Neustart erhalten (SQLite-Datei)", async () => {
   await page.getByRole("searchbox").fill("");
   await page.getByTestId("sidebar-unifiedInbox").click();
