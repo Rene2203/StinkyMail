@@ -417,6 +417,52 @@ Einzige Stichprobe: eine kurze Anfrage brauchte mit 4K/F16, 16K/F16 und 16K/Q8_0
 **Ungeprüft:** Speicherbedarf und Tempo mit wirklich langen Eingaben auf schwacher Hardware (N97, 8 GB), Qualität
 der Antworten bei vollem Fenster.
 
+## Ternary Bonsai 2 9B und 27B (PrismML, 16.10.2026)
+
+Auf Wunsch des Nutzers getestet („mach dir um den N97 erstmal keine Gedanken“). Apache 2.0, ternäre Gewichte (~2 Bit),
+Architektur Qwen 3.5. Läuft **nicht** in node-llama-cpp/normalem llama.cpp (Formate `PQ2_0`/`PTQ1_0`), sondern nur in der
+PrismML-Abspaltung (`PrismML-Eng/llama.cpp`, Zweig `prism`, Stand 5ae2e16, selbst gebaut mit `-march=native`). Gemessen
+über deren `llama-server` mit dem neuen `OpenAICompatibleProvider` (`eval-models.ts --server`), gleiche Prompts wie Gemma,
+JSON per `response_format`, Nachdenken aus. Gleicher Rechnertyp wie oben (4 Kerne, nur CPU).
+
+**Tempo** (`llama-bench`, 4 Threads, Token/s):
+
+| Modell | Datei | Prompt | Ausgabe |
+|---|---|---|---|
+| Gemma 4 E2B (Q4_K_M, Vergleich) | 2,9 GB | 58,8 | 11,0 |
+| Bonsai 2 9B `PTQ1_0` | 2,0 GB | 3,2 | 2,4 |
+| **Bonsai 2 9B `PQ2_0`** | 2,4 GB | **21,3** | **5,6** |
+| Bonsai 2 27B `PTQ1_0` | 5,9 GB | 0,9 | 0,7 |
+| **Bonsai 2 27B `PQ2_0`** | 7,2 GB | **6,6** | **1,9** |
+
+`PTQ1_0` hat auf x86 noch keine schnellen Kernel (laut PrismML in Arbeit) – auf CPU also immer `PQ2_0` nehmen.
+
+**Qualität** (Testsatz 80 Mails + 10 Konversationen; Kontrollsatz 28 Mails / 10 Konversationen):
+
+| Modell | Kategorie Test | Kategorie Kontrolle | Fakten | „Wer ist dran“ Test / Kontrolle | Aktionen | Kategorie (Median) | Zusammenfassung (Median) |
+|---|---|---|---|---|---|---|---|
+| Gemma 4 E2B (Standard) | 98,8 % | 92,9 % | 96,2 % | 90 % / 90 % | 100 % | 3,7 s | 13,2 s |
+| Gemma 4 E4B | 100 % | 100 % | 96,2 % | 90 % / 90 % | 98,3 % | 6,7 s | 26,6 s |
+| Bonsai 2 9B `PQ2_0` | 97,5 % | 89,3 % | 84,6 % | 90–100 % / 80 % | 95,0 % | 7,5 s | 27–30 s |
+| **Bonsai 2 27B `PQ2_0`** | **100 %** | **100 %** | **100 %** | **100 %** / – | – | 26,3 s | 104,6 s |
+
+- **9B** ist auf diesem Testsatz **nicht besser als Gemma E2B**, aber doppelt so langsam: vergisst öfter Fakten (Mengen,
+  Beträge), zwei Newsletter/Benachrichtigungen als „persönlich“, im Kontrollsatz 3 Fehler (u. a. eine Phishing-Mail als
+  Benachrichtigung). Aktionen 95 % (ein Termin um einen Tag verschoben, eine Abfahrtszeit übersehen). „Wer ist dran“ schwankte
+  zwischen zwei Läufen (100 % / 90 %) – Temperatur 0, aber nicht vollständig deterministisch.
+- **27B** ist das erste Modell **ganz ohne Fehler** im Testsatz (inkl. aller Fakten und „wer ist dran“) und im Kontrollsatz
+  der Einordnung. Auf 4 CPU-Kernen aber ~26 s je Mail und ~1¾ min je Zusammenfassung – für die App auf schwacher Hardware
+  unbrauchbar, als **eigener Server mit Grafikkarte** (Spezifikation 5.3) sehr interessant.
+- **Ehrlich:** Die Prompts sind auf Gemma abgestimmt (der Testsatz ist dadurch nicht mehr ganz neutral), Bonsai wurde ohne
+  Anpassung gemessen – ein Nachteil für Bonsai, eher kein Vorteil. Je eine Messung, Zeiten Richtwerte. Nicht gemessen: 27B bei
+  Aktionen, Antworten, Regeln, Abos/Belegen/Zusagen und die Kontroll-Konversationen; Bilder (mmproj), Speicherbedarf auf
+  8 GB, N97, Grafikkarte.
+- **Grafikkarte:** Messung auf dem PC des Nutzers vorbereitet, Anleitung in `docs/KI-MESSUNG-GPU.md`.
+
+**Folgerung:** Standard bleibt Gemma 4 E2B (Leitplanke ~3B auf schwacher Hardware; Bonsai läuft zudem nicht in unserer
+Laufzeit). Bonsai 2 27B ist der beste Kandidat für den optionalen „eigenen Server“ mit GPU. Dafür gibt es jetzt den
+`OpenAICompatibleProvider` im Kern; in der App ist er **noch nicht** einstellbar.
+
 ## Ergebnis und Entscheidung
 
 - **Standard: Gemma 4 E2B.** Mit v2 98,8 % (Testsatz) bzw. 92,9 % (Kontrollsatz) richtig eingeordnet – Ziel ≥ 90 % erreicht –,

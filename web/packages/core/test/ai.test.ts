@@ -319,7 +319,7 @@ describe("Messlauf", () => {
   });
 
   it("nimmt nur Modelle auf diesem Gerät", async () => {
-    await expect(evaluateProvider(new FakeProvider("cloud", ["{}"]))).rejects.toThrow(/nur für Modelle auf diesem Gerät/);
+    await expect(evaluateProvider(new FakeProvider("cloud", ["{}"]))).rejects.toThrow(/nur für Modelle auf eigenen Geräten/);
   });
 
   it("Testsatz ist vollständig und erfunden", () => {

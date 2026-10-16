@@ -1,5 +1,12 @@
 # Changelog
 
+## Nach 0.9.0-rc.1 (16.10.2026)
+
+- KI-Kern: Anbieter für Server mit OpenAI-kompatibler Schnittstelle (`OpenAICompatibleProvider`) – Grundlage für den
+  optionalen „eigenen Server“; in der App noch nicht einstellbar.
+- Messskript: `--server`, `--server-name`, `--server-body`, `--limit`; Messung von Ternary Bonsai 2 9B/27B in
+  `docs/KI-MESSUNG.md`, Anleitung für Messungen mit Grafikkarte in `docs/KI-MESSUNG-GPU.md`.
+
 ## 0.9.0-rc.1 – erster Release-Kandidat (11.10.2026)
 
 - Versionsnummer 0.9.0-rc.1, in den Optionen sichtbar. Enthält alles bis W12 (siehe unten).

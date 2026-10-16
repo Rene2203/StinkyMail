@@ -21,6 +21,9 @@ const out = flag("--out");
 // (llama.cpp-Server, z. B. die PrismML-Abspaltung für Bonsai; Ollama; LM Studio). Der Modellordner ist dann egal.
 const serverUrl = flag("--server");
 const serverName = flag("--server-name") ?? "Server";
+// --server-body <JSON>: zusätzliche Felder je Anfrage, z. B. '{"reasoning_effort":"none"}' für Bonsai 2 27B
+const serverBodyFlag = flag("--server-body");
+const serverBody = serverBodyFlag ? (JSON.parse(serverBodyFlag) as Record<string, unknown>) : {};
 // --holdout: nur den Kontrollsatz (ohne Zusammenfassungen); --all: Testsatz + Kontrollsatz
 const holdout = args.includes("--holdout");
 // --actions: nur der Aktionen-Messlauf (W6.1), inklusive Vergleichswert „Regeln ohne KI“
@@ -57,7 +60,12 @@ const subscriptionsOnly = args.includes("--subscriptions");
 if (subscriptionsOnly) args.splice(args.indexOf("--subscriptions"), 1);
 const all = args.includes("--all");
 for (const name of ["--holdout", "--all"]) if (args.includes(name)) args.splice(args.indexOf(name), 1);
-const mails = holdout ? evalHoldoutMails : all ? [...evalMails, ...evalHoldoutMails] : evalMails;
+// --limit N: gleichmäßig verteilte Stichprobe von N Mails (für sehr langsame Modelle, ohne Verläufe) –
+// der Testsatz ist nach Kategorien sortiert, die ersten N wären alle aus einer Kategorie
+const limitFlag = flag("--limit");
+const limit = limitFlag ? Number(limitFlag) : undefined;
+const allMails = holdout ? evalHoldoutMails : all ? [...evalMails, ...evalHoldoutMails] : evalMails;
+const mails = limit && limit < allMails.length ? Array.from({ length: limit }, (_, i) => allMails[Math.floor((i * allMails.length) / limit)]).filter((m) => m !== undefined) : allMails;
 const threads = Number(flag("--threads") ?? 0);
 const gpuIndex = args.indexOf("--gpu");
 const gpu = gpuIndex !== -1;
@@ -74,7 +82,7 @@ function selectedModels(wanted: string[]): CatalogModel[] {
 /** Anbieter mit load/dispose wie LlamaCppProvider – beim Server ohne eigenes Laden */
 function makeProvider(model: CatalogModel, dir: string) {
   if (serverUrl) {
-    const provider = new OpenAICompatibleProvider({ id: model.id, displayName: model.name, baseUrl: serverUrl, contextWindow: 16_384, extraBody: { chat_template_kwargs: { enable_thinking: false } }, timeoutMs: 900_000 });
+    const provider = new OpenAICompatibleProvider({ id: model.id, displayName: model.name, baseUrl: serverUrl, contextWindow: 16_384, extraBody: { chat_template_kwargs: { enable_thinking: false }, ...serverBody }, timeoutMs: 900_000 });
     return Object.assign(provider, { load: async () => ({ loadMs: 0 }), dispose: async () => undefined });
   }
   return new LlamaCppProvider({ id: model.id, displayName: model.name, modelPath: join(dir, fileNameFromUrl(model.url)), gpu: gpu ? "auto" : false, maxThreads: threads, idleUnloadMs: 0 });
@@ -239,7 +247,7 @@ for (const model of models) {
     const report = await evaluateProvider(provider, {
       loadMs,
       mails,
-      ...(holdout ? { threads: [] } : {}),
+      ...(holdout || limit ? { threads: [] } : {}),
       onProgress: (p) => process.stderr.write(`\r${model.id}: ${p.done}/${p.total} (${p.phase})   `),
     });
     process.stderr.write("\n");

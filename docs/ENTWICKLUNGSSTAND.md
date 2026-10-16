@@ -3,7 +3,7 @@
 Laufendes Protokoll des Zwischenstands. Wird nach jedem größeren Arbeitsschritt aktualisiert –
 nicht erst am Ende einer Phase. Abgeschlossene Phasen stehen zusätzlich in `CHANGELOG.md`.
 
-**Zuletzt aktualisiert:** 11.10.2026
+**Zuletzt aktualisiert:** 16.10.2026
 **Aktueller Fokus:** Windows-App (`web/`), danach Server mit Browser – Roadmap: `docs/ROADMAP-WINDOWS.md`
 **Aktuelle Phase:** Release-Kandidat **0.9.0-rc.1** der Windows-App (W1–W12 fertig). Danach: Rückmeldungen zum RC, Server mit Browser (S1), UI-Überarbeitung, Feinabstimmung mit echten Beispielmails.
 
@@ -753,3 +753,16 @@ App Intents, großes RAM-Limit für lokale Modelle), lassen sich derzeit nicht a
   **Lehre:** Nach Änderungen an `package.json` immer `npm ci` in einer sauberen Kopie laufen lassen.
 - Tag setzen geht aus dieser Umgebung nicht (Push nur auf den Arbeitszweig erlaubt) – das Tag legt der Nutzer an.
 
+
+### 16.10.2026 – Modelltest Ternary Bonsai 2 (9B, 27B) und Anbieter für eigene Server
+- Auf Wunsch des Nutzers Bonsai 2 9B und 27B (PrismML, Apache 2.0) gemessen – Ergebnisse in `docs/KI-MESSUNG.md`.
+  Kurz: **9B** auf unserem Testsatz nicht besser als Gemma E2B, aber doppelt so langsam. **27B** fehlerfrei bei Einordnung
+  (Test- und Kontrollsatz), Fakten und „wer ist dran“ – auf 4 CPU-Kernen aber ~26 s je Mail. Standard bleibt Gemma 4 E2B.
+- Bonsai braucht die PrismML-Abspaltung von llama.cpp (eigene Formate) und läuft deshalb nicht in unserer Laufzeit
+  (node-llama-cpp). Gemessen über deren `llama-server` mit neuem **`OpenAICompatibleProvider`** im Kern (Ollama,
+  LM Studio, llama.cpp-Server, vLLM; Datenschutzklasse „eigener Server“). **In der App noch nicht einstellbar.**
+- Messskript: `--server <URL>`, `--server-name`, `--server-body <JSON>`, `--limit N` (gleichmäßig verteilte Stichprobe).
+  Messläufe erlauben jetzt eigene Server (Testmails sind erfunden), eine Cloud weiterhin nie.
+- Anleitung für die Messung auf dem PC des Nutzers mit Grafikkarte: `docs/KI-MESSUNG-GPU.md`. **Ungeprüft:** ob die
+  PrismML-Windows-Builds dort starten (bekannte Probleme mit CUDA 13.3 und manchen CPUs sind in der Anleitung vermerkt).
+- **Ungeprüft:** Bonsai auf N97/8 GB, mit Grafikkarte, mit Bildern; 27B bei Aktionen, Antworten, Regeln, Abos usw.

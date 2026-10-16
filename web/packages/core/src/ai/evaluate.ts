@@ -13,7 +13,7 @@ import { interpretRule, interpretRuleWithRules } from "./rules.js";
 import { draftReplies, joinGreeting } from "./replies.js";
 import { ruleEquals } from "../rules.js";
 import { categories } from "./prompts.js";
-import { AIRouter, GrantPolicy } from "./router.js";
+import { AIRouter, type AIPolicy } from "./router.js";
 import { categorizeMessage, summarizeThread } from "./tasks.js";
 import { extractSubscription, lastCancelDay, ruleSubscription, type SubscriptionFinding } from "./subscriptions.js";
 import { evalSubscriptionCases, evalSubscriptionHoldout, evalSubscriptionHoldout2 } from "./evalSubscriptions.js";
@@ -124,14 +124,18 @@ function median(values: number[]): number {
   return sorted.length % 2 ? (sorted[mid] ?? 0) : Math.round(((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2);
 }
 
+/** Messläufe nutzen nur erfundene Testmails: eigene Geräte und eigene Server sind erlaubt, eine Cloud nie. */
+const evalPolicy: AIPolicy = { isAllowed: (_accountId, _task, privacyClass) => privacyClass !== "cloud" };
+
 export async function evaluateProvider(
   provider: AIProvider,
   options: { mails?: EvalMail[]; threads?: EvalThread[]; loadMs?: number; signal?: AbortSignal; onProgress?: (progress: EvalProgress) => void; summaryPromptVersion?: 2 | 4 } = {},
 ): Promise<EvalReport> {
-  if (provider.privacyClass !== "onDevice") throw new Error("Der Messlauf ist nur für Modelle auf diesem Gerät gedacht.");
+  // Testmails sind erfunden; trotzdem nur eigene Geräte/Server, nie eine Cloud
+  if (provider.privacyClass === "cloud") throw new Error("Der Messlauf ist nur für Modelle auf eigenen Geräten gedacht.");
   const mails = options.mails ?? evalMails;
   const threads = options.threads ?? evalThreads;
-  const router = new AIRouter({ providerFor: () => provider, policy: new GrantPolicy() });
+  const router = new AIRouter({ providerFor: () => provider, policy: evalPolicy });
   const started = Date.now();
   const total = mails.length + threads.length;
 
@@ -272,7 +276,7 @@ function actionMatches(action: MailAction, expected: EvalActionCase["expected"][
 export async function evaluateActions(provider: AIProvider | null, options: { cases?: EvalActionCase[]; onProgress?: (done: number, total: number) => void } = {}): Promise<ActionsEvalReport> {
   const cases = options.cases ?? evalActionCases;
   const all = [...evalMails, ...evalHoldoutMails, ...evalRelativeMails];
-  const router = provider ? new AIRouter({ providerFor: () => provider, policy: new GrantPolicy() }) : null;
+  const router = provider ? new AIRouter({ providerFor: () => provider, policy: evalPolicy }) : null;
   let expectedTotal = 0;
   let found = 0;
   let falsePositives = 0;
@@ -340,7 +344,7 @@ export interface RulesEvalReport {
 }
 
 export async function evaluateRules(provider: AIProvider | null, options: { modelOnly?: boolean; onProgress?: (done: number, total: number) => void } = {}): Promise<RulesEvalReport> {
-  const router = provider ? new AIRouter({ providerFor: () => provider, policy: new GrantPolicy() }) : null;
+  const router = provider ? new AIRouter({ providerFor: () => provider, policy: evalPolicy }) : null;
   const sets = [{ cases: evalRuleCases, holdout: false }, { cases: evalRuleHoldout, holdout: true }];
   const total = evalRuleCases.length + evalRuleHoldout.length;
   const report: RulesEvalReport = { name: provider ? `${provider.displayName} (${options.modelOnly ? "nur Modell" : "Regeln zuerst"})` : "Regeln (ohne KI)", correct: 0, total: evalRuleCases.length, holdoutCorrect: 0, holdoutTotal: evalRuleHoldout.length, modelCalls: 0, fallbacks: 0, medianMs: 0, misses: [] };
@@ -387,7 +391,7 @@ export interface RepliesEvalReport {
 }
 
 export async function evaluateReplies(provider: AIProvider, options: { onProgress?: (done: number, total: number) => void } = {}): Promise<RepliesEvalReport> {
-  const router = new AIRouter({ providerFor: () => provider, policy: new GrantPolicy() });
+  const router = new AIRouter({ providerFor: () => provider, policy: evalPolicy });
   const report: RepliesEvalReport = { name: provider.displayName, cases: evalReplyCases.length, twoOrMore: 0, atLeastOne: 0, formCorrect: 0, medianMs: 0, samples: [] };
   const durations: number[] = [];
   for (const [index, testCase] of evalReplyCases.entries()) {
@@ -428,7 +432,7 @@ export interface SubscriptionsEvalReport {
 
 /** Abo-Messlauf: Erkennung (ja/nein) und Felder (Art, Anbieter, Betrag, Intervall, Probe-Ende, letzter Kündigungstag ±1). */
 export async function evaluateSubscriptions(provider: AIProvider | null, options: { onProgress?: (done: number, total: number) => void } = {}): Promise<SubscriptionsEvalReport> {
-  const router = provider ? new AIRouter({ providerFor: () => provider, policy: new GrantPolicy() }) : null;
+  const router = provider ? new AIRouter({ providerFor: () => provider, policy: evalPolicy }) : null;
   const durations: number[] = [];
   const misses: string[] = [];
   const sets: SubscriptionsEvalReport["sets"] = [];
@@ -519,7 +523,7 @@ export async function evaluateUserCategories(
   provider: AIProvider,
   options: { promptVersion?: 1 | 2 | 3; onProgress?: (done: number, total: number) => void } = {},
 ): Promise<UserCategoriesEvalReport> {
-  const router = new AIRouter({ providerFor: () => provider, policy: new GrantPolicy() });
+  const router = new AIRouter({ providerFor: () => provider, policy: evalPolicy });
   const report: UserCategoriesEvalReport = { name: `${provider.displayName} v${options.promptVersion ?? 3}`, sets: [], medianMs: 0, misses: [] };
   const durations: number[] = [];
   const all = [
@@ -573,7 +577,7 @@ export interface ReceiptsEvalReport {
 
 /** Belegordner: Regeln allein (provider = null) oder Modell + Regeln. Kategorie getrennt gezählt (Vorschlag). */
 export async function evaluateReceipts(provider: AIProvider | null, options: { onProgress?: (done: number, total: number) => void } = {}): Promise<ReceiptsEvalReport> {
-  const router = provider ? new AIRouter({ providerFor: () => provider, policy: new GrantPolicy() }) : null;
+  const router = provider ? new AIRouter({ providerFor: () => provider, policy: evalPolicy }) : null;
   const report: ReceiptsEvalReport = { name: provider?.displayName ?? "Regeln (ohne KI)", sets: [], medianMs: 0, misses: [] };
   const durations: number[] = [];
   const all = [["Testsatz", evalReceiptCases], ["Kontrollsatz", evalReceiptHoldout], ["Kontrollsatz 2", evalReceiptHoldout2]] as const;
@@ -666,7 +670,7 @@ function promiseMessage(c: EvalPromiseCase): Message {
 
 /** Versprechen-Tracker: Regeln allein (provider = null) oder Modell. */
 export async function evaluatePromises(provider: AIProvider | null, options: { onProgress?: (done: number, total: number) => void } = {}): Promise<PromisesEvalReport> {
-  const router = provider ? new AIRouter({ providerFor: () => provider, policy: new GrantPolicy() }) : null;
+  const router = provider ? new AIRouter({ providerFor: () => provider, policy: evalPolicy }) : null;
   const report: PromisesEvalReport = { name: provider?.displayName ?? "Regeln (ohne KI)", sets: [], medianMs: 0, misses: [] };
   const durations: number[] = [];
   const all = [["Testsatz", evalPromiseCases], ["Kontrollsatz", evalPromiseHoldout], ["Kontrollsatz 2", evalPromiseHoldout2]] as const;
