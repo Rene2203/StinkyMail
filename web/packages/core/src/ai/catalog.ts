@@ -1,16 +1,23 @@
 // Kuratierte lokale Modelle (5.2). Maßstab ist ein ~3B-Modell auf schwacher Hardware; größere sind optional.
 // Dateien: GGUF, 4-Bit (Q4_K_M) von unsloth auf Hugging Face; Prüfsumme (SHA-256) aus dem Hugging-Face-Index.
 // Jedes andere GGUF-Modell lässt sich zusätzlich selbst einbinden.
+// Bonsai 2 (PrismML): ternäre Gewichte im Format PQ2_0 – liest Eingaben schneller als PTQ1_0 (gleiche Gewichte, nur
+// anders gepackt, also gleiche Qualität); Mails sind lange Eingaben mit kurzen Antworten. Messung: docs/KI-MESSUNG.md.
 
 export type ModelCapability = "text" | "image" | "audio";
 
 export interface CatalogModel {
   id: string;
   name: string;
-  family: "gemma" | "qwen";
+  family: "gemma" | "qwen" | "bonsai";
   /** Parameter (gerundet, Milliarden) – Gemma E-Modelle: „effektive“ Parameter. */
   paramsB: number;
-  quantization: "Q4_K_M";
+  quantization: "Q4_K_M" | "PQ2_0";
+  /**
+   * Womit das Modell läuft: eingebaut (node-llama-cpp, Standard) oder über die PrismML-Laufzeit (llama-server der
+   * PrismML-Abspaltung; nur sie kann die ternären Bonsai-Formate). Die Laufzeit wird mit dem Modell geladen.
+   */
+  runtime?: "builtin" | "prism";
   url: string;
   sizeBytes: number;
   sha256: string;
@@ -104,6 +111,36 @@ export const modelCatalog: readonly CatalogModel[] = [
       sha256: "cd88edcf8d031894960bb0c9c5b9b7e1fea6ebee02b9f7ce925a00d12891f864",
     },
     note: "Von Alibaba. Gut, aber auf schwachen Rechnern deutlich am langsamsten.",
+  },
+  {
+    id: "bonsai-2-9b-pq2",
+    name: "Bonsai 2 9B",
+    family: "bonsai",
+    paramsB: 9,
+    quantization: "PQ2_0",
+    runtime: "prism",
+    url: hf("prism-ml/Ternary-Bonsai-2-9B-gguf", "Ternary-Bonsai-2-9B-PQ2_0.gguf"),
+    sizeBytes: 2_416_851_840,
+    sha256: "7a89ab48f5038c704480f60781f9b8d4035351f5f6beb7d11fad80001fde23f9",
+    minRamGb: 8,
+    capabilities: ["text"],
+    license: "Apache-2.0",
+    note: "Von PrismML. Im Test etwa so gut wie Gemma 4 E2B, ohne Grafikkarte aber doppelt so langsam. Für Grafikkarten gedacht.",
+  },
+  {
+    id: "bonsai-2-27b-pq2",
+    name: "Bonsai 2 27B",
+    family: "bonsai",
+    paramsB: 27,
+    quantization: "PQ2_0",
+    runtime: "prism",
+    url: hf("prism-ml/Ternary-Bonsai-2-27B-gguf", "Ternary-Bonsai-2-27B-PQ2_0.gguf"),
+    sizeBytes: 7_206_168_928,
+    sha256: "3907dc1658db1f78a9826bf8d5bcb8dc65db0d466388937af57f2294fae62ec1",
+    minRamGb: 16,
+    capabilities: ["text"],
+    license: "Apache-2.0",
+    note: "Von PrismML. Im Test fehlerfrei – das beste Modell bisher. Braucht eine Grafikkarte mit 12 GB oder mehr; ohne sehr langsam.",
   },
 ];
 

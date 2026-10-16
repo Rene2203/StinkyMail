@@ -49,7 +49,7 @@ import {
   type Message,
 } from "@stinkyma/core";
 import { CleanupService, MailService, RuleService, extractLockedPdfText, type OAuthBroker } from "@stinkyma/core/mail";
-import { AIService, ModelStore, RuntimeStore, SubscriptionService, UserCategoryService, ReceiptService, PromiseService, AskService, LlamaEmbedder, AttachmentService, MeetingService } from "@stinkyma/core/llm";
+import { AIService, ModelStore, RuntimeStore, prismRuntime, SubscriptionService, UserCategoryService, ReceiptService, PromiseService, AskService, LlamaEmbedder, AttachmentService, MeetingService } from "@stinkyma/core/llm";
 import { EncryptedFileSecretStore, signInWithLoopback } from "@stinkyma/core/node";
 import { ActionStore, AIResultStore, CleanupStore, DigestStore, SubscriptionStore, UserCategoryStore, ReceiptStore, PromiseStore, EmbeddingStore, ContactStore, PriorityStore, PersonalStore, AttachmentStore, MeetingStore, StatsStore, ParcelStore, TravelStore, MailWriter, openDatabase, RuleStore, seedIfEmpty, SqliteMailRepository } from "@stinkyma/core/sqlite";
 import { buildMenu } from "./menu";
@@ -240,6 +240,8 @@ function setUpServices(): void {
     store: new ModelStore(dataPath("models")),
     // Bild-Laufzeit (llama-server) erst bei Bedarf – „Bilder und Scans verstehen“ in den Optionen
     runtime: new RuntimeStore(dataPath("runtime")),
+    // Bonsai: PrismML-Laufzeit (mit NVIDIA-Treiber die CUDA-Ausgabe) – wird zusammen mit dem Modell geladen
+    prismRuntime: new RuntimeStore(dataPath("runtime"), { runtime: prismRuntime() }),
     attachmentContent: (attachmentId) => {
       if (!service) throw new Error("Datenbank ist noch nicht bereit");
       return service.attachmentContent(attachmentId);

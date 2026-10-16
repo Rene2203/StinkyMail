@@ -4,6 +4,7 @@ import { createServer } from "node:net";
 import { dirname } from "node:path";
 import type { AIRequest, AIResponse, PrivacyClass } from "../ai/types.js";
 import { modelContextTokens } from "../ai/prepare.js";
+import { toResponseSchema } from "../ai/openAiProvider.js";
 import type { ManagedProvider } from "./aiService.js";
 
 // Anbieter über die OpenAI-kompatible Schnittstelle von llama.cpp (llama-server). Zwei Teile:
@@ -34,7 +35,8 @@ export function chatRequestBody(request: AIRequest, model?: string): Record<stri
     ),
     max_tokens: request.maxTokens,
     temperature: request.temperature ?? 0,
-    ...(request.jsonSchema ? { response_format: { type: "json_schema", json_schema: { name: request.task, schema: request.jsonSchema } } } : {}),
+    // Alle Felder Pflicht wie bei der Grammatik der eingebauten Laufzeit – sonst lässt das Modell Felder weg
+    ...(request.jsonSchema ? { response_format: { type: "json_schema", json_schema: { name: request.task, schema: toResponseSchema(request.jsonSchema) } } } : {}),
     chat_template_kwargs: { enable_thinking: false },
     stream: false,
   };
@@ -75,6 +77,10 @@ export interface LlamaServerOptions {
   /** Wie lange der Start dauern darf (Modell von der Platte laden). */
   startTimeoutMs?: number;
   privacyClass?: PrivacyClass;
+  /** Name in Fehlermeldungen, z. B. „Die Bild-Laufzeit startet nicht“. */
+  label?: string;
+  /** Flash-Attention (schneller auf der Grafikkarte; Bonsai empfiehlt `-fa on`). */
+  flashAttention?: boolean;
 }
 
 async function freePort(): Promise<number> {
@@ -110,6 +116,10 @@ export class LlamaServerProvider implements ManagedProvider {
     this.privacyClass = options.privacyClass ?? "onDevice";
     this.contextWindow = options.contextSize ?? modelContextTokens;
     this.acceptsImages = !!options.mmprojPath;
+  }
+
+  get #label(): string {
+    return this.options.label ?? "Bild-Laufzeit";
   }
 
   get isLoaded(): boolean {
@@ -176,6 +186,7 @@ export class LlamaServerProvider implements ManagedProvider {
     // Zwischenspeicher (Schlüssel) halb so groß – stabil ohne Flash-Attention; spart Speicher beim 16K-Fenster
     if (smallCache) args.push("--cache-type-k", "q8_0");
     if (this.options.mmprojPath) args.push("--mmproj", this.options.mmprojPath);
+    if (this.options.flashAttention && this.options.gpu) args.push("-fa", "on");
     if (this.options.maxThreads) args.push("-t", String(this.options.maxThreads));
     // Schlüssel über die Umgebung, nicht über die Befehlszeile (dort für andere Programme sichtbar)
     const env: NodeJS.ProcessEnv = { ...process.env, LLAMA_API_KEY: apiKey };
@@ -190,12 +201,12 @@ export class LlamaServerProvider implements ManagedProvider {
         this.#client = null;
       }
     });
-    const spawnError = new Promise<never>((_, reject) => child.once("error", (error) => reject(new Error(`Die Bild-Laufzeit startet nicht: ${error.message}`))));
+    const spawnError = new Promise<never>((_, reject) => child.once("error", (error) => reject(new Error(`Die ${this.#label} startet nicht: ${error.message}`))));
     const client = new OpenAIChatClient({ baseUrl: `http://127.0.0.1:${port}`, apiKey });
     const deadline = Date.now() + (this.options.startTimeoutMs ?? 180_000);
     const ready = (async () => {
       while (Date.now() < deadline) {
-        if (exited !== undefined) throw new EarlyExitError(exited);
+        if (exited !== undefined) throw new EarlyExitError(this.#label, exited);
         try {
           const health = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(2000) });
           if (health.ok) return client;
@@ -204,7 +215,7 @@ export class LlamaServerProvider implements ManagedProvider {
         }
         await new Promise((resolve) => setTimeout(resolve, 300));
       }
-      throw new Error("Die Bild-Laufzeit hat zu lange zum Starten gebraucht.");
+      throw new Error(`Die ${this.#label} hat zu lange zum Starten gebraucht.`);
     })();
     try {
       const result = await Promise.race([ready, spawnError]);
@@ -258,8 +269,8 @@ export class LlamaServerProvider implements ManagedProvider {
 
 /** llama-server hat sich beim Start beendet (z. B. Einstellung, die das Modell nicht kann) */
 class EarlyExitError extends Error {
-  constructor(code: number | null) {
-    super(`Die Bild-Laufzeit wurde unerwartet beendet (Code ${code}).`);
+  constructor(label: string, code: number | null) {
+    super(`Die ${label} wurde unerwartet beendet (Code ${code}).`);
     this.name = "EarlyExitError";
   }
 }

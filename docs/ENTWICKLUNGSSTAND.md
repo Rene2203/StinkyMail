@@ -766,3 +766,25 @@ App Intents, großes RAM-Limit für lokale Modelle), lassen sich derzeit nicht a
 - Anleitung für die Messung auf dem PC des Nutzers mit Grafikkarte: `docs/KI-MESSUNG-GPU.md`. **Ungeprüft:** ob die
   PrismML-Windows-Builds dort starten (bekannte Probleme mit CUDA 13.3 und manchen CPUs sind in der Anleitung vermerkt).
 - **Ungeprüft:** Bonsai auf N97/8 GB, mit Grafikkarte, mit Bildern; 27B bei Aktionen, Antworten, Regeln, Abos usw.
+
+### 16.10.2026 – Bonsai in der Windows-App (Weg 1: PrismML-Laufzeit im Hintergrund)
+- Zielgeräte laut Nutzer: RTX 4070 Ti Super (Haupt-PC), M5 iPad Pro 16 GB, ab iPhone 15 Pro Max. Bonsai 27B/9B für PC
+  und iPad, 9B fürs iPhone. (Die Leitplanke „~3B auf schwacher Hardware“ in `CLAUDE.md` ist noch nicht angepasst – Frage
+  an den Nutzer offen, ob schwache PCs mit Gemma E2B als Rückfall bleiben sollen; bis dahin bleibt Gemma E2B Standard.)
+- **Bonsai 2 9B und 27B** (`PQ2_0`) stehen in Optionen → KI zur Auswahl. Der Download lädt das Modell **und** die
+  PrismML-Laufzeit (feste Ausgabe `prism-b10777-e3de715`, Prüfsummen fest im Code): unter Windows mit NVIDIA-Treiber die
+  CUDA-12.4-Ausgabe samt CUDA-Bibliotheken (~700 MB, deshalb nicht im Installer), sonst die CPU-Ausgabe (~20 MB).
+  Die App startet `llama-server` selbst (nur 127.0.0.1, zufälliger Port und Schlüssel), mit Grafikkarte und
+  Flash-Attention, entlädt nach 10 Minuten ohne Nutzung. Löschen des letzten Bonsai-Modells löscht die Laufzeit mit.
+  Für den Nutzer: nichts einzurichten.
+- `RuntimeStore` kann jetzt Laufzeiten aus mehreren Archiven; Löschen trifft nur die eigene (vorher: ganzer Ordner).
+  `llama-server`-Anfragen verlangen jetzt alle Felder im JSON-Schema (wie die eingebaute Laufzeit).
+- **Geprüft (Linux-Container, nur CPU):** neue Unit-Tests (Laufzeit aus mehreren Archiven, Status „teilweise“ ohne
+  Laufzeit, Download holt sie nach, Start über llama-server, Löschen); echte PrismML-Linux-Ausgabe mit echtem Bonsai 9B
+  (ordnet eine Rechnung ein); **E2E in der echten App** (`e2e/bonsai.spec.ts`, nur von Hand): Modell liegt bereit →
+  „Fortsetzen“ lädt die echte Laufzeit → „In Benutzung“ → Zusammenfassung „Auf diesem Gerät berechnet“ (1,8 min).
+  Die Windows-CI lädt und startet die Windows-CPU-Ausgabe mit dem Testmodell.
+- **Ungeprüft:** CUDA-Ausgabe auf einer echten NVIDIA-Karte (hier keine Grafikkarte), Bonsai 27B in der App, Tempo auf
+  der RTX 4070 Ti Super, Verhalten bei AMD-/Intel-Grafik (bekommt die CPU-Ausgabe). Bekannte PrismML-Probleme: CUDA-Builds
+  starten auf manchen CPUs nicht (dann Fehlermeldung in den Optionen; Ausweichen auf CPU-Ausgabe gibt es noch nicht).
+- Bilder (mmproj) mit Bonsai noch nicht eingebunden.

@@ -47,8 +47,12 @@ test("KI: Modelle in den Optionen, Zusammenfassung auf diesem Gerät", async () 
     await page.getByTestId("open-options").click();
     const section = page.getByTestId("ai-section");
     await expect(section).toBeVisible();
-    await expect(section.getByTestId("ai-model")).toHaveCount(4);
+    // 4 eingebaute Modelle + Bonsai 9B/27B (PrismML-Laufzeit, unter Linux die CPU-Ausgabe)
+    await expect(section.getByTestId("ai-model")).toHaveCount(6);
     await expect(section.getByText("Gemma 4 E2B", { exact: false }).first()).toBeVisible();
+    // Größe mit Laufzeit: 2,4 GB Modell + ~18 MB Laufzeit
+    await expect(section.locator('[data-testid="ai-model"][data-model="bonsai-2-9b-pq2"]')).toContainText("Bonsai 2 9B");
+    await expect(section.locator('[data-testid="ai-model"][data-model="bonsai-2-9b-pq2"]')).toContainText("2,4 GB");
     await expect(section.getByText("Qwen 3.5 2B", { exact: false }).first()).toBeVisible();
     await expect(page.getByTestId("ai-enabled")).not.toBeChecked();
     await section.scrollIntoViewIfNeeded();

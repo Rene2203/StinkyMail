@@ -76,3 +76,53 @@ describe.skipIf(!modelPath || process.env.STINKYMA_TEST_LLAMA_RUNTIME !== "1")("
     }
   }, 300_000);
 });
+
+// Echte PrismML-Laufzeit (die Ausgabe für dieses System; in der Windows-CI ohne Grafikkarte die CPU-Ausgabe) mit dem
+// Testmodell: prüft Download, Entpacken und Start von llama-server.exe – nicht die Qualität.
+describe.skipIf(!modelPath || process.env.STINKYMA_TEST_LLAMA_RUNTIME !== "1")("PrismML-Laufzeit (echt, Testmodell)", () => {
+  it("lädt die PrismML-Ausgabe, startet sie und antwortet im JSON-Schema", async () => {
+    const { mkdtempSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { LlamaServerProvider, RuntimeStore, prismRuntime } = await import("../src/llm/index.js");
+    const runtime = prismRuntime();
+    if (!runtime) return; // kein Windows/Linux x64
+    const dir = mkdtempSync(join(tmpdir(), "stinkyma-prism-rt-"));
+    const serverPath = await new RuntimeStore(dir, { runtime }).download();
+    const provider = new LlamaServerProvider({ id: "prism", displayName: "Prism", serverPath, modelPath: modelPath ?? "", gpu: false, idleUnloadMs: 0, label: "KI-Laufzeit für Bonsai" });
+    try {
+      const response = await provider.generate({ task: "categorize", messages: [{ role: "user", content: "Betreff: Ihre Rechnung" }], jsonSchema: categorizeSchema, maxTokens: 150 });
+      expect(typeof (extractJson(response.text) as { category?: unknown } | null)?.category).toBe("string");
+    } finally {
+      await provider.dispose();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 300_000);
+});
+
+// Echte PrismML-Laufzeit mit echtem Bonsai-Modell: STINKYMA_TEST_BONSAI_MODEL=/pfad/Ternary-Bonsai-2-9B-PQ2_0.gguf und
+// STINKYMA_TEST_LLAMA_RUNTIME=1 (lädt die feste PrismML-Ausgabe, ~18 MB unter Linux, mit Prüfsumme).
+const bonsaiPath = process.env.STINKYMA_TEST_BONSAI_MODEL;
+describe.skipIf(!bonsaiPath || process.env.STINKYMA_TEST_LLAMA_RUNTIME !== "1")("PrismML-Laufzeit mit Bonsai (echt)", () => {
+  it("lädt die Laufzeit, startet Bonsai und ordnet eine Mail im JSON-Schema ein", async () => {
+    const { mkdtempSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { LlamaServerProvider, RuntimeStore, prismRuntime } = await import("../src/llm/index.js");
+    const dir = mkdtempSync(join(tmpdir(), "stinkyma-prism-"));
+    const serverPath = await new RuntimeStore(dir, { runtime: prismRuntime() }).download();
+    const provider = new LlamaServerProvider({ id: "bonsai", displayName: "Bonsai", serverPath, modelPath: bonsaiPath ?? "", gpu: false, flashAttention: true, idleUnloadMs: 0, startTimeoutMs: 300_000, label: "KI-Laufzeit für Bonsai" });
+    try {
+      const response = await provider.generate({
+        task: "categorize",
+        messages: [{ role: "user", content: "Betreff: Ihre Rechnung Nr. 4711\n\nGuten Tag, anbei Ihre Rechnung über 23,90 €, fällig am 30.10." }],
+        jsonSchema: categorizeSchema,
+        maxTokens: 150,
+      });
+      expect(typeof (extractJson(response.text) as { category?: unknown } | null)?.category).toBe("string");
+    } finally {
+      await provider.dispose();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 600_000);
+});

@@ -2,6 +2,8 @@
 
 ## Nach 0.9.0-rc.1 (16.10.2026)
 
+- **Bonsai 2 9B und 27B** (PrismML) in Optionen → KI: Ein Download lädt Modell und PrismML-Laufzeit (mit NVIDIA-Karte
+  die CUDA-Ausgabe); die App startet sie unsichtbar im Hintergrund, nur auf diesem Rechner erreichbar.
 - KI-Kern: Anbieter für Server mit OpenAI-kompatibler Schnittstelle (`OpenAICompatibleProvider`) – Grundlage für den
   optionalen „eigenen Server“; in der App noch nicht einstellbar.
 - Messskript: `--server`, `--server-name`, `--server-body`, `--limit`; Messung von Ternary Bonsai 2 9B/27B in

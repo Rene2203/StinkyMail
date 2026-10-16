@@ -1,5 +1,9 @@
 # KI-Messung auf dem eigenen PC (Grafikkarte)
 
+> **Zum Benutzen braucht es diese Anleitung nicht:** Bonsai lässt sich direkt in StinkyMail unter Optionen → KI
+> herunterladen; die App lädt und startet die PrismML-Laufzeit selbst. Diese Anleitung ist nur für die **Messung** mit
+> dem Testsatz (Vergleichszahlen für `docs/KI-MESSUNG.md`).
+
 Anleitung, um Modelle wie **Ternary Bonsai 2** (PrismML) mit demselben Testsatz zu messen wie Gemma – auf dem eigenen
 Windows-PC mit NVIDIA-Grafikkarte. Alles läuft lokal; der Testsatz besteht nur aus erfundenen Mails. Ergebnisse bitte
 mit den Ausgabedateien zurückgeben (siehe unten), dann trage ich sie in `docs/KI-MESSUNG.md` ein.

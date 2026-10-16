@@ -28,7 +28,7 @@ import type { Message, MessageCategory } from "../models.js";
 import type { AIResultStore, StoredReading, StoredSummary } from "../sqlite/aiStore.js";
 import { LlamaCppProvider } from "./llamaProvider.js";
 import { LlamaServerProvider } from "./llamaServer.js";
-import type { ModelStore } from "./modelStore.js";
+import type { ModelStatus, ModelStore } from "./modelStore.js";
 import type { RuntimeStore } from "./runtimeStore.js";
 
 // KI-Dienst der Windows-App (und später des Servers): verwaltet Modelle, Einstellungen, Zusammenfassungen und die
@@ -51,6 +51,10 @@ export interface AIServiceOptions {
   createProvider?: (model: CatalogModel, path: string, settings: AISettings) => ManagedProvider;
   /** Bild-Laufzeit (llama-server); fehlt sie, gibt es kein „Bilder verstehen“. */
   runtime?: RuntimeStore;
+  /** PrismML-Laufzeit für Bonsai-Modelle; fehlt sie (oder gibt es für das System keine), erscheinen diese Modelle nicht. */
+  prismRuntime?: RuntimeStore;
+  /** Anbieter für Modelle mit eigener Laufzeit (Standard: llama-server dieser Laufzeit, nur 127.0.0.1). */
+  createServerProvider?: (model: CatalogModel, paths: { server: string; model: string }, settings: AISettings) => ManagedProvider;
   /** Inhalt eines Anhangs (ggf. vom Mailserver geholt). */
   attachmentContent?: (attachmentId: string) => Promise<{ filename: string; mimeType: string; content: Uint8Array }>;
   createVisionProvider?: (model: CatalogModel, paths: { server: string; model: string; mmproj: string }, settings: AISettings) => ManagedProvider;
@@ -97,7 +101,8 @@ export class AIService implements AIApi {
 
   constructor(private readonly options: AIServiceOptions) {
     this.#settings = normalizeAISettings(options.settings.load());
-    this.#catalog = options.catalog ?? modelCatalog;
+    // Modelle mit eigener Laufzeit nur, wenn es die Laufzeit für dieses System gibt
+    this.#catalog = (options.catalog ?? modelCatalog).filter((m) => m.runtime !== "prism" || !!options.prismRuntime?.asset);
     if (this.#settings.modelId && !this.#model(this.#settings.modelId)) this.#settings = { ...this.#settings, modelId: null };
   }
 
@@ -117,7 +122,8 @@ export class AIService implements AIApi {
     let selectedInstalled = false;
     for (const model of this.#catalog) {
       const downloading = this.#download?.modelId === model.id ? this.#download : null;
-      const stored = await this.options.store.status(model);
+      const stored = await this.#stored(model);
+      const extraBytes = await this.#runtimeMissingBytes(model);
       const state = downloading ? "downloading" : stored.state;
       if (model.id === this.#settings.modelId && stored.state === "installed") selectedInstalled = true;
       models.push({
@@ -125,14 +131,15 @@ export class AIService implements AIApi {
         name: model.name,
         family: model.family,
         paramsB: model.paramsB,
-        sizeBytes: model.sizeBytes,
+        // Mit der noch fehlenden Laufzeit: das ist, was der Download wirklich lädt
+        sizeBytes: model.sizeBytes + extraBytes,
         minRamGb: model.minRamGb,
         capabilities: model.capabilities,
         note: model.note,
         recommended: model.recommended ?? false,
         fits: this.options.ramGb >= model.minRamGb,
         state,
-        receivedBytes: downloading ? downloading.receivedBytes : stored.state === "partial" ? stored.receivedBytes : stored.state === "installed" ? model.sizeBytes : 0,
+        receivedBytes: downloading ? downloading.receivedBytes : stored.state === "partial" ? stored.receivedBytes : stored.state === "installed" ? model.sizeBytes + extraBytes : 0,
       });
     }
     return {
@@ -175,23 +182,26 @@ export class AIService implements AIApi {
     if (!model) throw new Error("Unbekanntes Modell.");
     if (this.#download) throw new Error("Es läuft bereits ein Download.");
     const controller = new AbortController();
-    this.#download = { kind: "model", modelId, receivedBytes: 0, totalBytes: model.sizeBytes, controller };
+    const runtimeBytes = await this.#runtimeMissingBytes(model);
+    this.#download = { kind: "model", modelId, receivedBytes: 0, totalBytes: model.sizeBytes + runtimeBytes, controller };
     this.#error = null;
     await this.#emit();
+    const progress = (receivedBytes: number) => {
+      if (!this.#download) return;
+      this.#download.receivedBytes = receivedBytes;
+      const now = Date.now();
+      if (now - this.#lastProgressAt > 250) {
+        this.#lastProgressAt = now;
+        this.#emitQuietly();
+      }
+    };
     try {
-      await this.options.store.download(model, {
-        signal: controller.signal,
-        onProgress: (progress) => {
-          if (!this.#download) return;
-          this.#download.receivedBytes = progress.receivedBytes;
-          this.#download.totalBytes = progress.totalBytes;
-          const now = Date.now();
-          if (now - this.#lastProgressAt > 250) {
-            this.#lastProgressAt = now;
-            this.#emitQuietly();
-          }
-        },
-      });
+      await this.options.store.download(model, { signal: controller.signal, onProgress: (p) => progress(p.receivedBytes) });
+      // Bonsai: die Laufzeit gehört dazu – ein Download, ein Fortschrittsbalken
+      const runtime = this.#runtimeFor(model);
+      if (runtime && !(await runtime.serverPath())) {
+        await runtime.download({ signal: controller.signal, onProgress: (p) => progress(model.sizeBytes + p.receivedBytes) });
+      }
       this.#download = null;
       // Erstes Modell: gleich verwenden
       if (!this.#settings.modelId) {
@@ -224,7 +234,32 @@ export class AIService implements AIApi {
       this.options.settings.save(this.#settings);
     }
     await this.options.store.delete(model);
+    // Letztes Modell dieser Laufzeit gelöscht: Laufzeit (bis ~700 MB) mit weg
+    const runtime = this.#runtimeFor(model);
+    if (runtime) {
+      const others = this.#catalog.filter((m) => m.id !== model.id && this.#runtimeFor(m) === runtime);
+      const stillUsed = (await Promise.all(others.map((m) => this.options.store.status(m)))).some((st) => st.state !== "missing");
+      if (!stillUsed) await runtime.delete();
+    }
     await this.#emit();
+  }
+
+  /** Eigene Laufzeit des Modells (Bonsai: PrismML), sonst null (eingebaute Laufzeit). */
+  #runtimeFor(model: CatalogModel): RuntimeStore | null {
+    return model.runtime === "prism" ? (this.options.prismRuntime ?? null) : null;
+  }
+
+  async #runtimeMissingBytes(model: CatalogModel): Promise<number> {
+    const runtime = this.#runtimeFor(model);
+    return runtime && !(await runtime.serverPath()) ? runtime.sizeBytes : 0;
+  }
+
+  /** Modell-Status samt Laufzeit: installiert erst, wenn beides da ist. */
+  async #stored(model: CatalogModel): Promise<ModelStatus> {
+    const stored = await this.options.store.status(model);
+    const runtime = this.#runtimeFor(model);
+    if (!runtime || stored.state !== "installed" || (await runtime.serverPath())) return stored;
+    return { state: "partial", receivedBytes: model.sizeBytes, totalBytes: model.sizeBytes + runtime.sizeBytes };
   }
 
   async cachedSummary(threadId: string): Promise<SummaryView | null> {
@@ -777,7 +812,7 @@ export class AIService implements AIApi {
 
   async #modelReady(): Promise<boolean> {
     const model = this.#settings.enabled && this.#settings.modelId ? this.#model(this.#settings.modelId) : undefined;
-    return !!model && (await this.options.store.status(model)).state === "installed";
+    return !!model && (await this.#stored(model)).state === "installed";
   }
 
   async setActionStatus(actionId: string, status: ActionStatus): Promise<void> {
@@ -978,13 +1013,28 @@ export class AIService implements AIApi {
     if (!this.#settings.enabled) throw new AINotConfiguredError("Die KI ist ausgeschaltet (Optionen → KI).");
     const model = this.#settings.modelId ? this.#model(this.#settings.modelId) : undefined;
     if (!model) throw new AINotConfiguredError("Noch kein KI-Modell gewählt (Optionen → KI).");
-    const status = await this.options.store.status(model);
+    const status = await this.#stored(model);
     if (status.state !== "installed") throw new AINotConfiguredError(`„${model.name}“ ist noch nicht heruntergeladen (Optionen → KI).`);
     const key = `${model.id}|${this.#settings.useGpu}`;
     if (this.#provider?.key !== key) {
       await this.#releaseProvider();
-      const create = this.options.createProvider ?? ((m, path, s) => new LlamaCppProvider({ id: m.id, displayName: m.name, modelPath: path, gpu: s.useGpu ? "auto" : false }));
-      this.#provider = { key, provider: create(model, status.path, this.#settings) };
+      const runtime = this.#runtimeFor(model);
+      const server = runtime ? await runtime.serverPath() : null;
+      if (runtime && !server) throw new AINotConfiguredError(`Für „${model.name}“ fehlt noch die KI-Laufzeit (Optionen → KI).`);
+      let provider: ManagedProvider;
+      if (server) {
+        const create =
+          this.options.createServerProvider ??
+          ((m: CatalogModel, p: { server: string; model: string }, s: AISettings) =>
+            // Eigenes Programm auf diesem Rechner (nur 127.0.0.1, zufälliger Schlüssel) – bleibt „auf dem Gerät“.
+            // Länger geladen lassen als das Bild-Programm: großes Modell, Neustart kostet Zeit.
+            new LlamaServerProvider({ id: m.id, displayName: m.name, serverPath: p.server, modelPath: p.model, gpu: s.useGpu, flashAttention: true, idleUnloadMs: 10 * 60_000, startTimeoutMs: 300_000, label: "KI-Laufzeit für Bonsai" }));
+        provider = create(model, { server, model: status.path }, this.#settings);
+      } else {
+        const create = this.options.createProvider ?? ((m, path, s) => new LlamaCppProvider({ id: m.id, displayName: m.name, modelPath: path, gpu: s.useGpu ? "auto" : false }));
+        provider = create(model, status.path, this.#settings);
+      }
+      this.#provider = { key, provider };
     }
     const provider = this.#exclusive(this.#provider.provider);
     // Nur lokale Modelle – die Freigabe-Prüfung bleibt trotzdem im Weg jedes Aufrufs.
