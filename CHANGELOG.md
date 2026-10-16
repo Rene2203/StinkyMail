@@ -2,6 +2,10 @@
 
 ## Nach 0.9.0-rc.1 (16.10.2026)
 
+- **„Abbrechen“** für laufende KI-Arbeit (unten links): stoppt sofort, hält Hintergrundarbeit an, gibt den Speicher frei;
+  „Weiter“ setzt fort.
+- Behoben: KI-Programm (llama-server) lief nach dem Beenden der App teils weiter.
+- Modellwechsel („Verwenden“) sofort sichtbar; Fehler dabei stehen in den Optionen.
 - **Bonsai 2 9B und 27B** (PrismML) in Optionen → KI: Ein Download lädt Modell und PrismML-Laufzeit (mit NVIDIA-Karte
   die CUDA-Ausgabe); die App startet sie unsichtbar im Hintergrund, nur auf diesem Rechner erreichbar.
 - KI-Kern: Anbieter für Server mit OpenAI-kompatibler Schnittstelle (`OpenAICompatibleProvider`) – Grundlage für den

@@ -21,7 +21,7 @@ const statsMethods = ["overview", "dismiss", "resetDismissed"];
 const meetingsMethods = ["feeds", "addFeed", "removeFeed", "refresh", "preferences", "setPreferences", "forMessage", "draftReply", "acceptance", "addToCalendar"];
 const askMethods = ["ask", "status", "downloadModel", "deleteModel"];
 const receiptsMethods = ["list", "scan", "addFromMail", "update", "setStatus", "addCategory", "removeCategory", "remind", "cancelReminder", "export"];
-const aiMethods = ["status", "update", "download", "cancelDownload", "deleteModel", "cachedSummary", "summarize", "downloadVision", "attachmentReading", "readAttachment", "messageActions", "setActionStatus", "remind", "cancelReminder", "addToCalendar", "replyDrafts", "dailyDigest", "resume", "setCategory", "learnedSenders", "forgetSender", "complete", "cancelCompletion", "analyzeAttachment", "askAttachment"];
+const aiMethods = ["status", "update", "download", "cancelDownload", "deleteModel", "cachedSummary", "summarize", "downloadVision", "attachmentReading", "readAttachment", "messageActions", "setActionStatus", "remind", "cancelReminder", "addToCalendar", "replyDrafts", "dailyDigest", "resume", "setCategory", "learnedSenders", "forgetSender", "complete", "cancelCompletion", "analyzeAttachment", "askAttachment", "stop"];
 
 const bridge = (channel: string, methods: string[]) =>
   Object.fromEntries(methods.map((method) => [method, (...args: unknown[]) => ipcRenderer.invoke(channel, method, args)]));

@@ -85,7 +85,11 @@ export class AIService implements AIApi {
   /** Welches Modell gerade im Speicher sein darf – Text- und Bild-Laufzeit nie gleichzeitig (schwache Rechner). */
   #active: ManagedProvider | null = null;
   /** Wartende Modell-Anfragen; was der Nutzer angeklickt hat, steht vor der Hintergrundarbeit. */
-  #queue: { foreground: boolean; start: () => void }[] = [];
+  #queue: { foreground: boolean; start: () => void; cancel: () => void }[] = [];
+  /** Vom Nutzer angehalten: keine Hintergrundarbeit bis „Weiter“ */
+  #paused = false;
+  /** Bricht die laufende Modell-Anfrage ab („Abbrechen“); wird danach erneuert */
+  #stop = new AbortController();
   #running = false;
   #download: { kind: "model" | "vision"; modelId: string; receivedBytes: number; totalBytes: number; controller: AbortController } | null = null;
   #categorizing: { remaining: number; done: number; total: number } | null = null;
@@ -154,6 +158,7 @@ export class AIService implements AIApi {
       backlog,
       error: this.#error,
       autocompleteSlow: this.#completionSlow,
+      paused: this.#paused,
     };
   }
 
@@ -506,8 +511,14 @@ export class AIService implements AIApi {
    */
   #enqueue<T>(foreground: boolean, job: () => Promise<T>): Promise<T> {
     return new Promise<T>((resolve, reject) => {
+      // Angehalten: Hintergrundarbeit gar nicht erst einreihen (Angeklicktes läuft weiter)
+      if (this.#paused && !foreground) {
+        reject(new AIAbortedError());
+        return;
+      }
       const entry = {
         foreground,
+        cancel: () => reject(new AIAbortedError()),
         start: () => {
           job()
             .then(resolve, reject)
@@ -547,6 +558,17 @@ export class AIService implements AIApi {
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal?.addEventListener("abort", abort, { once: true });
+    // „Abbrechen“: sofort zurückkehren, auch wenn das Modell noch kurz weiterrechnet (es wird ohnehin entladen)
+    const stopSignal = this.#stop.signal;
+    let onStop = () => {};
+    const stopped = new Promise<never>((_, reject) => {
+      onStop = () => {
+        controller.abort();
+        reject(new AIAbortedError());
+      };
+    });
+    stopped.catch(() => undefined);
+    stopSignal.addEventListener("abort", onStop, { once: true });
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
@@ -555,13 +577,14 @@ export class AIService implements AIApi {
       }, limit);
     });
     try {
-      return await Promise.race([provider.generate(request, controller.signal), timeout]);
+      return await Promise.race([provider.generate(request, controller.signal), timeout, stopped]);
     } catch (error) {
       if (error instanceof AITimeoutError) this.#discard(provider);
       throw error;
     } finally {
       clearTimeout(timer);
       signal?.removeEventListener("abort", abort);
+      stopSignal.removeEventListener("abort", onStop);
     }
   }
 
@@ -909,6 +932,7 @@ export class AIService implements AIApi {
 
   async resume(): Promise<AIStatus> {
     this.#error = null;
+    this.#paused = false;
     this.categorizeInBackground();
     return this.#emit();
   }
@@ -919,6 +943,8 @@ export class AIService implements AIApi {
    */
   categorizeMessages(ids: string[]): number {
     if (!this.#settings.enabled) return 0;
+    // Ausdrücklich angeklickt („KI prüfen“): hebt ein Anhalten auf
+    this.#paused = false;
     const queued = new Set(this.#priority);
     const missing = this.options.results.uncategorizedIn([...new Set(ids)]).map((m) => m.id).filter((id) => !queued.has(id));
     this.#priority.push(...missing);
@@ -926,7 +952,24 @@ export class AIService implements AIApi {
     return missing.length;
   }
 
+  async stop(): Promise<AIStatus> {
+    this.#paused = true;
+    this.#categorizeRequested = false;
+    this.#priority = [];
+    // Wartende Aufträge verwerfen, laufenden abbrechen
+    for (const entry of this.#queue.splice(0)) entry.cancel();
+    this.#waiting = 0;
+    this.#stop.abort();
+    this.#stop = new AbortController();
+    // Modell entladen (Speicher frei) – im Hintergrund, die Anzeige soll sofort stimmen
+    this.#trackRelease(this.#releaseProvider());
+    this.#trackRelease(this.#releaseVision());
+    this.#activity = null;
+    return this.#emit();
+  }
+
   categorizeInBackground(): void {
+    if (this.#paused) return;
     if (this.#categorizing) {
       this.#categorizeRequested = true;
       return;
@@ -942,7 +985,7 @@ export class AIService implements AIApi {
   async #categorizeLoop(): Promise<void> {
     const since = () => this.#window().since;
     const range = () => this.#window();
-    const active = () => this.#settings.enabled && !this.#disposed && (this.#settings.autoCategorize || this.#priority.length > 0);
+    const active = () => this.#settings.enabled && !this.#disposed && !this.#paused && (this.#settings.autoCategorize || this.#priority.length > 0);
     const remainingCount = () => this.#priority.length + (this.#settings.autoCategorize ? this.options.results.uncategorizedCount(since(), range()) : 0);
     const next = (): Message | undefined => {
       while (this.#priority.length) {
@@ -985,6 +1028,8 @@ export class AIService implements AIApi {
           failures = 0;
         } catch (error) {
           if (error instanceof AIBlockedError || error instanceof AINotConfiguredError) break;
+          // Abgebrochen: die Mail bleibt uneingeordnet (keine Ersatz-Kategorie)
+          if (this.#paused || error instanceof AIAbortedError) break;
           // Eine Mail, an der das Modell scheitert, darf nicht alles aufhalten: einfache Regel-Einordnung, weiter.
           // Erst wenn es mehrmals hintereinander scheitert, ist das Modell selbst kaputt – dann anhalten und melden.
           this.options.results.setCategory(message.id, ruleCategory(message).category, "rules");

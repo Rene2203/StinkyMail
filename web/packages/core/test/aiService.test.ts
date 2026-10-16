@@ -269,6 +269,37 @@ describe("AIService", () => {
     expect((await service.summarize(threadId)).summary).toBe("Es geht um den Grillabend.");
   });
 
+  it("„Abbrechen“: hängende Einordnung endet sofort, Mail bleibt offen, Modell wird entladen; Angeklicktes läuft, „Weiter“ macht weiter", async () => {
+    const { service, install, results, providers, statuses, db } = setup({}, {
+      timeoutMs: 60_000,
+      configure: (p, index) => {
+        if (index === 0) p.hangWhen = (r) => r.task === "categorize";
+      },
+    });
+    install("klein");
+    const since = new Date(Date.now() - 14 * 86_400_000).toISOString();
+    const before = results.uncategorizedCount(since);
+    await service.update({ enabled: true, modelId: "klein" });
+    await until(() => statuses.at(-1)?.activity?.task === "categorize");
+    const stopped = await service.stop();
+    expect(stopped.paused).toBe(true);
+    expect(stopped.activity).toBeNull();
+    await until(() => statuses.at(-1)?.categorizing === null && providers[0]?.disposed === true);
+    // Nichts mit Ersatz-Regel eingeordnet, nichts läuft weiter
+    expect(results.uncategorizedCount(since)).toBe(before);
+    expect(db.prepare("SELECT COUNT(*) AS n FROM message WHERE categoryOrigin = 'rules'").get()).toEqual({ n: 0 });
+    service.categorizeInBackground();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(results.uncategorizedCount(since)).toBe(before);
+    // Angeklicktes (Zusammenfassen) läuft trotzdem – mit frisch geladenem Modell
+    const { threadId } = db.prepare("SELECT threadId FROM message LIMIT 1").get() as { threadId: string };
+    expect((await service.summarize(threadId)).summary).toBe("Es geht um den Grillabend.");
+    expect((await service.status()).paused).toBe(true);
+    // „Weiter“
+    expect((await service.resume()).paused).toBe(false);
+    await until(() => results.uncategorizedCount(since) === 0 && statuses.at(-1)?.categorizing === null);
+  });
+
   it("Korrektur von Hand: gemerkt je Absender, andere KI-Einordnungen des Absenders folgen, neue Mails ohne Modell", async () => {
     const { service, install, results, db, providers, statuses } = setup();
     install("klein");

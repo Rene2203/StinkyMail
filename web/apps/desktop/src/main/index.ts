@@ -49,7 +49,7 @@ import {
   type Message,
 } from "@stinkyma/core";
 import { CleanupService, MailService, RuleService, extractLockedPdfText, type OAuthBroker } from "@stinkyma/core/mail";
-import { AIService, ModelStore, RuntimeStore, prismRuntime, SubscriptionService, UserCategoryService, ReceiptService, PromiseService, AskService, LlamaEmbedder, AttachmentService, MeetingService } from "@stinkyma/core/llm";
+import { AIService, ModelStore, RuntimeStore, prismRuntime, killAllLlamaServers, SubscriptionService, UserCategoryService, ReceiptService, PromiseService, AskService, LlamaEmbedder, AttachmentService, MeetingService } from "@stinkyma/core/llm";
 import { EncryptedFileSecretStore, signInWithLoopback } from "@stinkyma/core/node";
 import { ActionStore, AIResultStore, CleanupStore, DigestStore, SubscriptionStore, UserCategoryStore, ReceiptStore, PromiseStore, EmbeddingStore, ContactStore, PriorityStore, PersonalStore, AttachmentStore, MeetingStore, StatsStore, ParcelStore, TravelStore, MailWriter, openDatabase, RuleStore, seedIfEmpty, SqliteMailRepository } from "@stinkyma/core/sqlite";
 import { buildMenu } from "./menu";
@@ -840,6 +840,9 @@ app.on("before-quit", () => {
   service?.dispose();
   void ai?.dispose();
   void ask?.dispose();
+  // KI-Programme (llama-server für Bonsai/Bilder) sofort beenden – das asynchrone Aufräumen oben schafft es vor dem
+  // Beenden nicht immer, dann liefen sie weiter und belegten Grafikspeicher.
+  killAllLlamaServers();
   destroyTray();
 });
 }

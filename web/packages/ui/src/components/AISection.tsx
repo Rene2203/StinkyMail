@@ -53,9 +53,21 @@ export function AISection() {
           <LearnedSenders />
         </>
       )}
-      {ai.categorizing && (
+      {(ai.categorizing || ai.activity) && (
         <p className="muted small" role="status">
-          <Loader2 size={13} className="spinning" aria-hidden="true" /> {t("ai.categorizing", { count: ai.categorizing.remaining })}
+          <Loader2 size={13} className="spinning" aria-hidden="true" />{" "}
+          {ai.categorizing ? t("ai.categorizing", { count: ai.categorizing.remaining }) : t("ai.working")}{" "}
+          <button type="button" className="link-button small" data-testid="ai-stop-options" onClick={() => void store.stopAI()}>
+            {t("aiActivity.stop")}
+          </button>
+        </p>
+      )}
+      {ai.paused && !ai.categorizing && !ai.activity && (
+        <p className="muted small" role="status">
+          {t("aiActivity.paused")} · {t("aiActivity.pausedHint")}{" "}
+          <button type="button" className="link-button small" onClick={() => void store.resumeAI()}>
+            {t("aiActivity.continue")}
+          </button>
         </p>
       )}
       {ai.error && <p className="dialog-error" role="alert">{ai.error}</p>}

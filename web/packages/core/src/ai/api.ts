@@ -142,6 +142,8 @@ export interface AIStatus {
   error: string | null;
   /** Autovervollständigung war auf diesem Rechner zu langsam und hat sich ausgeschaltet (bis sie wieder eingeschaltet wird). */
   autocompleteSlow?: boolean;
+  /** Vom Nutzer angehalten („Abbrechen“): keine Hintergrundarbeit, Modell entladen – bis „Weiter“. */
+  paused?: boolean;
 }
 
 /** Zusammenfassung für die Anzeige. */
@@ -258,6 +260,11 @@ export interface AIApi {
   /** Nach einem Fehler: Fehler vergessen und die Einordnung neu anstoßen. */
   resume(): Promise<AIStatus>;
   /**
+   * „Abbrechen“: laufende und wartende KI-Arbeit sofort beenden, Hintergrundarbeit anhalten und das Modell entladen
+   * (gibt Arbeits- bzw. Grafikspeicher frei). Was der Nutzer danach anklickt, läuft wieder; „Weiter“ (resume) hebt es auf.
+   */
+  stop(): Promise<AIStatus>;
+  /**
    * Fortsetzung des angefangenen Satzes (W8.5). `null`: aus, KI beschäftigt, nichts Brauchbares oder abgebrochen.
    * Eine neue Anfrage bricht die vorige ab.
    */
@@ -270,4 +277,4 @@ export interface AIApi {
   cancelCompletion(): Promise<void>;
 }
 
-export const aiMethods = ["status", "update", "download", "cancelDownload", "deleteModel", "cachedSummary", "summarize", "downloadVision", "attachmentReading", "readAttachment", "messageActions", "setActionStatus", "remind", "cancelReminder", "addToCalendar", "replyDrafts", "dailyDigest", "resume", "setCategory", "learnedSenders", "forgetSender", "complete", "cancelCompletion", "analyzeAttachment", "askAttachment"] as const satisfies readonly (keyof AIApi)[];
+export const aiMethods = ["status", "update", "download", "cancelDownload", "deleteModel", "cachedSummary", "summarize", "downloadVision", "attachmentReading", "readAttachment", "messageActions", "setActionStatus", "remind", "cancelReminder", "addToCalendar", "replyDrafts", "dailyDigest", "resume", "setCategory", "learnedSenders", "forgetSender", "complete", "cancelCompletion", "analyzeAttachment", "askAttachment", "stop"] as const satisfies readonly (keyof AIApi)[];

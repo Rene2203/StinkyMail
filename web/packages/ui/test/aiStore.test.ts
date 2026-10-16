@@ -95,6 +95,10 @@ function fakeAI(options: { ready?: boolean; cached?: SummaryView | null; fail?: 
       calls.push("resume");
       return status({ ready: true });
     },
+    stop: async () => {
+      calls.push("stop");
+      return status({ ready: true, paused: true });
+    },
     dailyDigest: async () => {
       calls.push("digest");
       return { day: "2026-09-29", due: [], important: [], waitingOnMe: [], counts: { newsletter: 2, notification: 0, spamSuspect: 0, flagged: 1 } };
@@ -323,6 +327,14 @@ describe("BrowserStore – KI", () => {
     await store.resumeAI();
     expect(ai.calls).toContain("resume");
     expect(store.getState().ai?.ready).toBe(true);
+  });
+
+  it("„Abbrechen“ reicht durch und zeigt „angehalten“", async () => {
+    const ai = fakeAI();
+    const store = await setup(ai);
+    await store.stopAI();
+    expect(ai.calls).toContain("stop");
+    expect(store.getState().ai?.paused).toBe(true);
   });
 
   it("Einordnung korrigieren: reicht durch, Rückmeldung mit Anzahl, gelernte Absender laden/vergessen", async () => {

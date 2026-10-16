@@ -1816,6 +1816,13 @@ export class BrowserStore {
     await this.#guard(async () => this.setAIStatus(await ai.resume()));
   }
 
+  /** „Abbrechen“: laufende KI-Arbeit beenden, Hintergrundarbeit anhalten, Modell entladen. */
+  async stopAI(): Promise<void> {
+    const ai = this.#ai;
+    if (!ai) return;
+    await this.#guard(async () => this.setAIStatus(await ai.stop()));
+  }
+
   /** Gibt es den Tagesüberblick (nur Windows-App)? */
   get canShowDigest(): boolean {
     return !!this.#ai;

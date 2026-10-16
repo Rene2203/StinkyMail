@@ -83,6 +83,31 @@ export interface LlamaServerOptions {
   flashAttention?: boolean;
 }
 
+/** Alle gestarteten llama-server – beim Beenden der App sicher mit beenden (sonst belegen sie weiter Grafikspeicher). */
+const runningServers = new Set<ChildProcess>();
+let exitHookInstalled = false;
+
+/** Beendet sofort alle noch laufenden llama-server (synchron – auch im letzten Moment beim Beenden der App). */
+export function killAllLlamaServers(): void {
+  for (const child of runningServers) {
+    try {
+      child.kill("SIGKILL");
+    } catch {
+      // schon beendet
+    }
+  }
+  runningServers.clear();
+}
+
+function track(child: ChildProcess): void {
+  if (!exitHookInstalled) {
+    exitHookInstalled = true;
+    process.once("exit", killAllLlamaServers);
+  }
+  runningServers.add(child);
+  child.once("exit", () => runningServers.delete(child));
+}
+
 async function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
@@ -192,6 +217,7 @@ export class LlamaServerProvider implements ManagedProvider {
     const env: NodeJS.ProcessEnv = { ...process.env, LLAMA_API_KEY: apiKey };
     if (process.platform === "linux") env.LD_LIBRARY_PATH = [dirname(this.options.serverPath), process.env.LD_LIBRARY_PATH].filter(Boolean).join(":");
     const child = spawn(this.options.serverPath, args, { env, stdio: "ignore", windowsHide: true });
+    track(child);
     this.#process = child;
     let exited: number | null | undefined;
     child.once("exit", (code) => {

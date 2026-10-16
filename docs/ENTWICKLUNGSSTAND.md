@@ -797,3 +797,17 @@ App Intents, großes RAM-Limit für lokale Modelle), lassen sich derzeit nicht a
 - Behoben: Wechsel ist sofort gespeichert und sichtbar, das alte Modell wird im Hintergrund freigegeben; ein neues startet
   erst danach (nie zwei große Modelle gleichzeitig). Fehler beim Wechsel stehen jetzt in den Optionen → KI. Test dazu.
 - **Ungeprüft:** ob das wirklich die Ursache beim Nutzer war – Rückmeldung mit dem neuen Installer abwarten.
+
+### 16.10.2026 – „Abbrechen“ für KI-Arbeit (Wunsch des Nutzers) und Fehler beim Beenden behoben
+- **„Abbrechen“** (Quadrat-Knopf in der KI-Anzeige unten links, solange die KI arbeitet; in Optionen → KI als Link):
+  beendet die laufende Modell-Anfrage sofort, verwirft wartende Aufträge, hält Hintergrundarbeit an (Einordnen, Abos,
+  Belege, Zusagen …) und entlädt das Modell (Arbeits-/Grafikspeicher frei). Anzeige dann „KI angehalten“ mit „Weiter“.
+  Was der Nutzer anklickt (Zusammenfassen, Antworten …), läuft trotzdem. Abgebrochene Mails bleiben offen (keine
+  Ersatz-Kategorie) und werden später erneut geprüft.
+- **Fehler gefunden und behoben:** Beim Beenden der App blieb `llama-server` (Bonsai, Bild-Laufzeit) teils weiterlaufen –
+  das Aufräumen war asynchron und kam vor dem Ende nicht mehr dran. Jetzt werden alle gestarteten llama-server beim
+  Beenden synchron beendet (auch bei einem Absturz über `process.on("exit")`). Beenden dauerte im Test vorher Minuten
+  (Playwright wartete), jetzt 0,1 s.
+- **Geprüft:** Unit-Tests (hängende Einordnung → sofort beendet, Mail bleibt offen, Modell entladen, Zusammenfassen geht,
+  „Weiter“ ordnet ein), Oberflächen-Test, echte App mit Bonsai 9B (von Hand): „Abbrechen“ nach 0,1 s „KI angehalten“,
+  danach kein llama-server mehr. **Ungeprüft:** unter Windows (dort beendet `kill` den Prozess sofort).

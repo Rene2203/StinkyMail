@@ -1,4 +1,4 @@
-import { AlertTriangle, Cpu } from "lucide-react";
+import { AlertTriangle, Cpu, Square } from "lucide-react";
 import type { AITask } from "@stinkyma/core";
 import { useEffect, useState } from "react";
 import { useBrowserState, useUi } from "../context.js";
@@ -45,6 +45,22 @@ export function AIActivity() {
   const elapsed = useElapsed(ai?.activity?.startedAt ?? null);
   if (!ai?.settings.enabled) return null;
   const { activity, categorizing, error, backlog } = ai;
+
+  // Vom Nutzer angehalten – bis „Weiter“
+  if (ai.paused && !activity && !categorizing) {
+    return (
+      <div className="ai-activity idle" role="status" data-testid="ai-activity">
+        <Cpu size={14} aria-hidden="true" />
+        <span className="ai-activity-text">
+          <span>{t("aiActivity.paused")}</span>
+          <span className="small muted">{t("aiActivity.pausedHint")}</span>
+        </span>
+        <button type="button" className="link-button small" data-testid="ai-resume" onClick={() => void store.resumeAI()}>
+          {t("aiActivity.continue")}
+        </button>
+      </div>
+    );
+  }
 
   // Leerlauf: trotzdem sichtbar, damit man weiß, woran man ist
   if (!activity && !categorizing && !error) {
@@ -106,7 +122,8 @@ export function AIActivity() {
   const percent = categorizing && categorizing.total > 0 ? Math.round((categorizing.done / categorizing.total) * 100) : null;
   const label = activity ? t(taskKey[activity.task]) : t("aiActivity.categorize");
   return (
-    <button type="button" className="ai-activity" role="status" data-testid="ai-activity" title={t("aiActivity.open")} onClick={() => store.openOptions()}>
+    <div className="ai-activity" role="status" data-testid="ai-activity">
+      <button type="button" className="ai-activity-open" title={t("aiActivity.open")} onClick={() => store.openOptions()}>
       <Cpu size={14} className="pulsing" aria-hidden="true" />
       <span className="ai-activity-text">
         <span>
@@ -127,6 +144,10 @@ export function AIActivity() {
           <span style={percent !== null && (!activity || activity.task === "categorize") ? { width: `${percent}%` } : undefined} />
         </span>
       </span>
-    </button>
+      </button>
+      <button type="button" className="icon-button ai-stop" data-testid="ai-stop" title={t("aiActivity.stopHint")} aria-label={t("aiActivity.stop")} onClick={() => void store.stopAI()}>
+        <Square size={12} aria-hidden="true" />
+      </button>
+    </div>
   );
 }

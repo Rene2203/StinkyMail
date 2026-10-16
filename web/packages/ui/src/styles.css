@@ -2445,6 +2445,33 @@ button.attachment-open:hover {
   color: var(--purple, #8a5cf5);
 }
 
+/* Laufend: Bereich öffnet die Optionen, daneben „Abbrechen“ */
+.ai-activity-open {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.ai-activity-open > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--purple, #8a5cf5);
+}
+
+.ai-activity > .ai-stop {
+  flex-shrink: 0;
+  align-self: center;
+}
+
 .ai-activity.error {
   cursor: default;
   align-items: center;
