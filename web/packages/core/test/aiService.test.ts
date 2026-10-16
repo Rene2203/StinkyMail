@@ -38,6 +38,8 @@ class FakeProvider implements ManagedProvider {
   delayMs = 0;
   /** Gemeldete Rechenzeit */
   reportedMs = 3;
+  /** Entladen dauert (großes Modell, das gerade noch rechnet) */
+  disposeGate: Promise<void> | null = null;
   constructor(readonly id: string) {
     this.displayName = id;
   }
@@ -58,6 +60,7 @@ class FakeProvider implements ManagedProvider {
   }
   async unload() {}
   async dispose() {
+    await this.disposeGate;
     this.disposed = true;
   }
 }
@@ -134,6 +137,28 @@ describe("AIService", () => {
     expect(status.ready).toBe(true);
     expect(saved()).toEqual({ enabled: true, modelId: "klein", autoCategorize: false, useGpu: true, vision: false, categorizeRange: { kind: "recent" }, autocomplete: true });
     await expect(service.update({ modelId: "gibt-es-nicht" })).rejects.toThrow(/Unbekanntes Modell/);
+  });
+
+  it("Modellwechsel ist sofort sichtbar, auch wenn das alte Modell lange zum Entladen braucht; das neue startet erst danach", async () => {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const { service, install, providers, repository } = setup({ enabled: true, modelId: "klein", autoCategorize: false }, { configure: (p, i) => (p.disposeGate = i === 0 ? gate : null) });
+    install("klein");
+    install("gross");
+    const [message] = await repository.messages({ kind: "unifiedInbox" }, 1);
+    if (!message) throw new Error("Testmail fehlt");
+    await service.summarize(message.threadId);
+    expect(providers).toHaveLength(1);
+    // Wechsel kommt sofort zurück, obwohl das Entladen hängt
+    const status = await service.update({ modelId: "gross" });
+    expect(status.settings.modelId).toBe("gross");
+    const next = service.summarize(message.threadId, { full: true });
+    await new Promise((r) => setTimeout(r, 30));
+    expect(providers).toHaveLength(1); // neues Modell wartet auf die Freigabe
+    release();
+    await next;
+    expect(providers[0]?.disposed).toBe(true);
+    expect(providers.map((p) => p.id)).toEqual(["klein", "gross"]);
   });
 
   it("vergisst ein gespeichertes Modell, das es nicht mehr gibt", async () => {

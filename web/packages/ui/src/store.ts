@@ -1730,7 +1730,14 @@ export class BrowserStore {
   async updateAI(patch: Partial<AISettings>): Promise<void> {
     const ai = this.#ai;
     if (!ai) return;
-    await this.#guard(async () => this.setAIStatus(await ai.update(patch)));
+    try {
+      this.setAIStatus(await ai.update(patch));
+    } catch (error) {
+      // Fehler in den Optionen zeigen – das Banner läge hinter dem Dialog
+      const current = this.#state.ai;
+      if (current) this.setAIStatus({ ...current, error: messageOf(error) });
+      else this.#set({ error: messageOf(error) });
+    }
   }
 
   /** Download starten; Fortschritt und Fehler kommen über den Status (Fehler stehen in den Optionen, nicht im Banner). */

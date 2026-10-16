@@ -788,3 +788,12 @@ App Intents, großes RAM-Limit für lokale Modelle), lassen sich derzeit nicht a
   der RTX 4070 Ti Super, Verhalten bei AMD-/Intel-Grafik (bekommt die CPU-Ausgabe). Bekannte PrismML-Probleme: CUDA-Builds
   starten auf manchen CPUs nicht (dann Fehlermeldung in den Optionen; Ausweichen auf CPU-Ausgabe gibt es noch nicht).
 - Bilder (mmproj) mit Bonsai noch nicht eingebunden.
+
+### 16.10.2026 – Rückmeldung: „Verwenden“ bei Bonsai ohne Wirkung (Windows, Nutzer)
+- Hier unter Linux nicht nachstellbar (Wechsel Qwen → Bonsai klappt, „In Benutzung“ erscheint). Wahrscheinliche Ursachen
+  auf dem PC des Nutzers: Der Wechsel wartete, bis das alte Modell (Gemma, evtl. gerade beim Einordnen oder Laden)
+  vollständig entladen war – ohne sichtbare Rückmeldung; ein Fehler beim Wechsel erschien im Banner hinter dem
+  Optionen-Dialog.
+- Behoben: Wechsel ist sofort gespeichert und sichtbar, das alte Modell wird im Hintergrund freigegeben; ein neues startet
+  erst danach (nie zwei große Modelle gleichzeitig). Fehler beim Wechsel stehen jetzt in den Optionen → KI. Test dazu.
+- **Ungeprüft:** ob das wirklich die Ursache beim Nutzer war – Rückmeldung mit dem neuen Installer abwarten.

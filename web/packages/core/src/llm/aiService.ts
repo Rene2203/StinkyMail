@@ -170,8 +170,10 @@ export class AIService implements AIApi {
     this.options.settings.save(next);
     this.#error = null;
     if (providerChanged || !next.vision) {
-      if (providerChanged) await this.#releaseProvider();
-      await this.#releaseVision();
+      // Nicht auf das Entladen warten: Ein großes Modell, das gerade noch rechnet oder lädt, kann dafür lange brauchen –
+      // die Auswahl soll sofort sichtbar sein. Das nächste Modell startet erst, wenn das alte freigegeben ist (#router).
+      if (providerChanged) this.#trackRelease(this.#releaseProvider());
+      this.#trackRelease(this.#releaseVision());
     }
     if (next.enabled && next.autoCategorize) this.categorizeInBackground();
     return this.#emit();
@@ -454,6 +456,7 @@ export class AIService implements AIApi {
     const key = `${model.id}|${this.#settings.useGpu}`;
     if (this.#vision?.key !== key) {
       await this.#releaseVision();
+      await this.#releasing;
       const paths = { server, model: stored.path, mmproj: stored.visionPath };
       const create =
         this.options.createVisionProvider ??
@@ -1018,6 +1021,7 @@ export class AIService implements AIApi {
     const key = `${model.id}|${this.#settings.useGpu}`;
     if (this.#provider?.key !== key) {
       await this.#releaseProvider();
+      await this.#releasing;
       const runtime = this.#runtimeFor(model);
       const server = runtime ? await runtime.serverPath() : null;
       if (runtime && !server) throw new AINotConfiguredError(`Für „${model.name}“ fehlt noch die KI-Laufzeit (Optionen → KI).`);
@@ -1039,6 +1043,14 @@ export class AIService implements AIApi {
     const provider = this.#exclusive(this.#provider.provider);
     // Nur lokale Modelle – die Freigabe-Prüfung bleibt trotzdem im Weg jedes Aufrufs.
     return { router: new AIRouter({ providerFor: () => provider, policy: new GrantPolicy() }), model };
+  }
+
+  /** Laufendes Freigeben alter Modelle – neue starten erst danach (nie zwei große Modelle gleichzeitig im Speicher). */
+  #releasing: Promise<void> = Promise.resolve();
+
+  #trackRelease(release: Promise<void>): void {
+    const quiet = release.catch(() => undefined);
+    this.#releasing = Promise.all([this.#releasing, quiet]).then(() => undefined);
   }
 
   async #releaseProvider(): Promise<void> {
@@ -1068,6 +1080,7 @@ export class AIService implements AIApi {
     this.#download?.controller.abort();
     await this.#releaseProvider();
     await this.#releaseVision();
+    await this.#releasing;
   }
 }
 
