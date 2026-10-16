@@ -5,6 +5,7 @@ import { writeFileSync } from "node:fs";
 import { cpus, totalmem } from "node:os";
 import { join } from "node:path";
 import { evalHoldoutMails, evalHoldoutThreads, evalMails, evalThreads, evaluateActions, evaluateProvider, evaluateReplies, evaluateRules, formatActionsReports, formatEvalReports, evaluateSubscriptions, formatSubscriptionsReports, type SubscriptionsEvalReport, evaluateUserCategories, formatUserCategoriesReports, type UserCategoriesEvalReport, evaluateReceipts, formatReceiptsReports, type ReceiptsEvalReport, evaluatePromises, formatPromisesReports, type PromisesEvalReport, formatRepliesReports, formatRulesReports, modelCatalog, type ActionsEvalReport, type EvalReport, type RepliesEvalReport, type RulesEvalReport } from "../src/index.js";
+import { OpenAICompatibleProvider } from "../src/ai/openAiProvider.js";
 import { fileNameFromUrl, LlamaCppProvider } from "../src/llm/index.js";
 
 const args = process.argv.slice(2);
@@ -16,6 +17,10 @@ const flag = (name: string) => {
   return value;
 };
 const out = flag("--out");
+// --server <URL> [--server-name <Name>]: statt lokaler Modelldateien einen OpenAI-kompatiblen Server messen
+// (llama.cpp-Server, z. B. die PrismML-Abspaltung für Bonsai; Ollama; LM Studio). Der Modellordner ist dann egal.
+const serverUrl = flag("--server");
+const serverName = flag("--server-name") ?? "Server";
 // --holdout: nur den Kontrollsatz (ohne Zusammenfassungen); --all: Testsatz + Kontrollsatz
 const holdout = args.includes("--holdout");
 // --actions: nur der Aktionen-Messlauf (W6.1), inklusive Vergleichswert „Regeln ohne KI“
@@ -60,11 +65,26 @@ if (gpu) args.splice(gpuIndex, 1);
 const [directory, ...ids] = args;
 if (!directory) throw new Error("Modellordner fehlt.");
 
+type CatalogModel = (typeof modelCatalog)[number];
+/** Zu messende Modelle: Katalog-Einträge oder ein Eintrag für den Server */
+function selectedModels(wanted: string[]): CatalogModel[] {
+  if (serverUrl) return [{ ...(modelCatalog[0] as CatalogModel), id: serverName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: serverName }];
+  return modelCatalog.filter((m) => wanted.length === 0 || wanted.includes(m.id));
+}
+/** Anbieter mit load/dispose wie LlamaCppProvider – beim Server ohne eigenes Laden */
+function makeProvider(model: CatalogModel, dir: string) {
+  if (serverUrl) {
+    const provider = new OpenAICompatibleProvider({ id: model.id, displayName: model.name, baseUrl: serverUrl, contextWindow: 16_384, extraBody: { chat_template_kwargs: { enable_thinking: false } }, timeoutMs: 900_000 });
+    return Object.assign(provider, { load: async () => ({ loadMs: 0 }), dispose: async () => undefined });
+  }
+  return new LlamaCppProvider({ id: model.id, displayName: model.name, modelPath: join(dir, fileNameFromUrl(model.url)), gpu: gpu ? "auto" : false, maxThreads: threads, idleUnloadMs: 0 });
+}
+
 if (actionsOnly) {
   const [directoryArg, ...idsArg] = args;
   const reports: ActionsEvalReport[] = [await evaluateActions(null)];
-  for (const model of modelCatalog.filter((m) => idsArg.length === 0 || idsArg.includes(m.id))) {
-    const provider = new LlamaCppProvider({ id: model.id, displayName: model.name, modelPath: join(directoryArg ?? "", fileNameFromUrl(model.url)), gpu: gpu ? "auto" : false, maxThreads: threads, idleUnloadMs: 0 });
+  for (const model of selectedModels(idsArg)) {
+    const provider = makeProvider(model, directoryArg ?? "");
     try {
       await provider.load();
       reports.push(await evaluateActions(provider, { onProgress: (d, t) => process.stderr.write(`\r${model.id}: ${d}/${t}   `) }));
@@ -80,8 +100,8 @@ if (actionsOnly) {
 
 if (repliesOnly) {
   const reports: RepliesEvalReport[] = [];
-  for (const model of modelCatalog.filter((m) => ids.length === 0 || ids.includes(m.id))) {
-    const provider = new LlamaCppProvider({ id: model.id, displayName: model.name, modelPath: join(directory, fileNameFromUrl(model.url)), gpu: gpu ? "auto" : false, maxThreads: threads, idleUnloadMs: 0 });
+  for (const model of selectedModels(ids)) {
+    const provider = makeProvider(model, directory);
     try {
       await provider.load();
       reports.push(await evaluateReplies(provider, { onProgress: (d, t) => process.stderr.write(`\r${model.id}: ${d}/${t}   `) }));
@@ -97,8 +117,8 @@ if (repliesOnly) {
 
 if (rulesOnly) {
   const reports: RulesEvalReport[] = [await evaluateRules(null)];
-  for (const model of modelCatalog.filter((m) => ids.length === 0 || ids.includes(m.id))) {
-    const provider = new LlamaCppProvider({ id: model.id, displayName: model.name, modelPath: join(directory, fileNameFromUrl(model.url)), gpu: gpu ? "auto" : false, maxThreads: threads, idleUnloadMs: 0 });
+  for (const model of selectedModels(ids)) {
+    const provider = makeProvider(model, directory);
     try {
       await provider.load();
       for (const modelOnly of [false, true]) {
@@ -124,8 +144,8 @@ if (askOnly) {
 
 if (promisesOnly) {
   const reports: PromisesEvalReport[] = [await evaluatePromises(null)];
-  for (const model of modelCatalog.filter((m) => ids.length === 0 || ids.includes(m.id))) {
-    const provider = new LlamaCppProvider({ id: model.id, displayName: model.name, modelPath: join(directory, fileNameFromUrl(model.url)), gpu: gpu ? "auto" : false, maxThreads: threads, idleUnloadMs: 0 });
+  for (const model of selectedModels(ids)) {
+    const provider = makeProvider(model, directory);
     try {
       await provider.load();
       reports.push(await evaluatePromises(provider, { onProgress: (d, t) => process.stderr.write(`\r${model.id}: ${d}/${t}   `) }));
@@ -141,8 +161,8 @@ if (promisesOnly) {
 
 if (receiptsOnly) {
   const reports: ReceiptsEvalReport[] = [await evaluateReceipts(null)];
-  for (const model of modelCatalog.filter((m) => ids.length === 0 || ids.includes(m.id))) {
-    const provider = new LlamaCppProvider({ id: model.id, displayName: model.name, modelPath: join(directory, fileNameFromUrl(model.url)), gpu: gpu ? "auto" : false, maxThreads: threads, idleUnloadMs: 0 });
+  for (const model of selectedModels(ids)) {
+    const provider = makeProvider(model, directory);
     try {
       await provider.load();
       reports.push(await evaluateReceipts(provider, { onProgress: (d, t) => process.stderr.write(`\r${model.id}: ${d}/${t}   `) }));
@@ -158,8 +178,8 @@ if (receiptsOnly) {
 
 if (userCategoriesOnly) {
   const reports: UserCategoriesEvalReport[] = [];
-  for (const model of modelCatalog.filter((m) => ids.length === 0 || ids.includes(m.id))) {
-    const provider = new LlamaCppProvider({ id: model.id, displayName: model.name, modelPath: join(directory, fileNameFromUrl(model.url)), gpu: gpu ? "auto" : false, maxThreads: threads, idleUnloadMs: 0 });
+  for (const model of selectedModels(ids)) {
+    const provider = makeProvider(model, directory);
     try {
       await provider.load();
       reports.push(await evaluateUserCategories(provider, { promptVersion: userCategoriesVersion, onProgress: (d, t) => process.stderr.write(`\r${model.id}: ${d}/${t}   `) }));
@@ -175,8 +195,8 @@ if (userCategoriesOnly) {
 
 if (subscriptionsOnly) {
   const reports: SubscriptionsEvalReport[] = [await evaluateSubscriptions(null)];
-  for (const model of modelCatalog.filter((m) => ids.length === 0 || ids.includes(m.id))) {
-    const provider = new LlamaCppProvider({ id: model.id, displayName: model.name, modelPath: join(directory, fileNameFromUrl(model.url)), gpu: gpu ? "auto" : false, maxThreads: threads, idleUnloadMs: 0 });
+  for (const model of selectedModels(ids)) {
+    const provider = makeProvider(model, directory);
     try {
       await provider.load();
       reports.push(await evaluateSubscriptions(provider, { onProgress: (d, t) => process.stderr.write(`\r${model.id}: ${d}/${t}   `) }));
@@ -192,8 +212,8 @@ if (subscriptionsOnly) {
 
 if (summariesOnly) {
   const reports: EvalReport[] = [];
-  for (const model of modelCatalog.filter((m) => ids.length === 0 || ids.includes(m.id))) {
-    const provider = new LlamaCppProvider({ id: model.id, displayName: model.name, modelPath: join(directory, fileNameFromUrl(model.url)), gpu: gpu ? "auto" : false, maxThreads: threads, idleUnloadMs: 0 });
+  for (const model of selectedModels(ids)) {
+    const provider = makeProvider(model, directory);
     try {
       const { loadMs } = await provider.load();
       for (const [label, set] of [["Testsatz", evalThreads], ["Kontrollsatz", evalHoldoutThreads]] as const) {
@@ -210,10 +230,10 @@ if (summariesOnly) {
   process.exit(0);
 }
 
-const models = modelCatalog.filter((m) => ids.length === 0 || ids.includes(m.id));
+const models = selectedModels(ids);
 const reports: EvalReport[] = [];
 for (const model of models) {
-  const provider = new LlamaCppProvider({ id: model.id, displayName: model.name, modelPath: join(directory, fileNameFromUrl(model.url)), gpu: gpu ? "auto" : false, maxThreads: threads, idleUnloadMs: 0 });
+  const provider = makeProvider(model, directory);
   try {
     const { loadMs } = await provider.load();
     const report = await evaluateProvider(provider, {

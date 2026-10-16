@@ -26,3 +26,4 @@ export * from "./attachmentRelevance.js";
 export * from "./evalAttachments.js";
 export * from "./askAttachment.js";
 export * from "./meetingReply.js";
+export * from "./openAiProvider.js";
